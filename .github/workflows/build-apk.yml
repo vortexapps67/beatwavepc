@@ -2,9 +2,14 @@ name: Build and Sign Android APK
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - beatwave-pc
+      - '**'
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - beatwave-pc
   workflow_dispatch:
 
 concurrency:

@@ -2,7 +2,10 @@ name: Android Release APK
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      - beatwave-pc
+      - '**'
   workflow_dispatch:
 
 jobs:
