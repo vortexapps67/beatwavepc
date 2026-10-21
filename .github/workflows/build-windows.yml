@@ -1,6 +1,15 @@
 name: Build Test Windows
 
 on:
+  push:
+    branches:
+      - main
+      - beatwave-pc
+      - '**'
+  pull_request:
+    branches:
+      - main
+      - beatwave-pc
   workflow_dispatch:
     inputs:
       version:
