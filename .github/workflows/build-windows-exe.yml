@@ -81,6 +81,7 @@ jobs:
             :desktopApp:packageExe `
             :desktopApp:packageMsi `
             :desktopApp:createDistributable `
+            :desktopApp:windowsPortable `
             "-Pbeatwave.version=$v" `
             "-Pbitchord.version=$v" `
             --stacktrace
@@ -107,11 +108,26 @@ jobs:
             Write-Host "Found MSI: $($msi.FullName)"
           }
 
-          # Portable packaging
+          # Portable packaging (Self-contained with slimmed JRE)
           $appDir = Get-ChildItem "desktopApp/build/compose/binaries/main/app" -Directory | Select-Object -First 1
           if ($appDir) {
-            Write-Host "Creating portable zip from $($appDir.FullName)"
-            7z a -tzip -mx=5 "dist/BeatWave-PC-$v-portable.zip" "$($appDir.FullName)/*" | Out-Null
+            Write-Host "Optimizing runtime and trimming bloat from $($appDir.FullName)..."
+            Remove-Item "$($appDir.FullName)\runtime\legal" -Recurse -Force -ErrorAction SilentlyContinue
+            Get-ChildItem -Path $appDir.FullName -Recurse -Filter *.pdb -ErrorAction SilentlyContinue | Remove-Item -Force
+            $unneededExes = @("keytool.exe", "kinit.exe", "klist.exe", "ktab.exe", "rmiregistry.exe", "jpackage.exe")
+            foreach ($u in $unneededExes) {
+              Remove-Item "$($appDir.FullName)\runtime\bin\$u" -Force -ErrorAction SilentlyContinue
+            }
+
+            Write-Host "Creating ultra-compressed portable zip from $($appDir.FullName)"
+            7z a -tzip -mx=9 "dist/BeatWave-PC-$v-portable.zip" "$($appDir.FullName)/*" | Out-Null
+          }
+
+          # Slim portable package (without bundled JRE, runnable with system Java)
+          $slimZip = Get-ChildItem "desktopApp/build/distributions/*-portable.zip" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($slimZip) {
+            Copy-Item $slimZip.FullName "dist/BeatWave-PC-$v-portable-slim.zip"
+            Write-Host "Found Slim Portable: $($slimZip.FullName)"
           }
 
           Get-ChildItem dist | Format-Table Name, Length
@@ -137,5 +153,13 @@ jobs:
         with:
           name: BeatWave-PC-Windows-Portable-ZIP
           path: dist/*-portable.zip
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload BeatWave PC Slim Portable (ZIP)
+        uses: actions/upload-artifact@v4
+        with:
+          name: BeatWave-PC-Windows-Slim-Portable-ZIP
+          path: dist/*-portable-slim.zip
           if-no-files-found: warn
           retention-days: 30

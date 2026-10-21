@@ -524,7 +524,6 @@ compose.desktop {
                 // Without this module the slim production runtime crashes in twkExecuteScript,
                 // while development runs work because the full JDK already contains it.
                 "jdk.jsobject",
-                "jdk.localedata",
                 "jdk.security.auth",
                 "jdk.unsupported",
                 "jdk.zipfs",

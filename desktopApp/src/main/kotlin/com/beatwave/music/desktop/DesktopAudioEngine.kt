@@ -174,6 +174,7 @@ class DesktopPlaybackEngine(
         class Upcoming(val track: Track) : Command
         /** A better copy of the incoming track, found after it was opened; see [upgradeIncoming]. */
         class ReplaceUpcoming(val track: Track) : Command
+        class TransitionTo(val track: Track, val playWhenReady: Boolean, val fadeSeconds: Float) : Command
         class SeekTo(val millis: Long) : Command
         data object ClearUpcoming : Command
         data object Reconfigure : Command
@@ -196,6 +197,56 @@ class DesktopPlaybackEngine(
             excludedSourceId = refusedSources[song.videoId],
             startAtMs = startAtMs.coerceAtLeast(0L),
         )
+    }
+
+    /**
+     * Smoothly crossfades from the current track into [song] over [fadeSeconds].
+     * If nothing is currently playing, starts immediately without delay.
+     */
+    fun transitionTo(song: Song, playWhenReady: Boolean = true, fadeSeconds: Float? = null) {
+        retryingSongId = null
+        val currentPlaying = current
+        if (currentPlaying == null || paused || !sink.isOpen) {
+            load(song, playWhenReady)
+            return
+        }
+
+        val effectiveFade = fadeSeconds ?: if (crossfadeSeconds > 0) crossfadeSeconds.toFloat() else 2.5f
+
+        val up = upcoming
+        if (up != null && up.song.videoId == song.videoId) {
+            upcoming = null
+            commands += Command.TransitionTo(up, playWhenReady, effectiveFade)
+            return
+        }
+
+        resolveJob?.cancel()
+        upgradeJob?.cancel()
+        _state.value = _state.value.copy(isLoading = false)
+        resolveJob = scope.launch {
+            val localUrl = DesktopDownloadManager.savedFile(song)?.toAbsolutePath()?.toString()
+                ?: DesktopAudioCache.cachedFile(song.videoId)?.toAbsolutePath()?.toString()
+            val resolved = localUrl?.let { Result.success(DesktopLiveResolution(DesktopStream(it))) }
+                ?: DesktopMusicSources.resolveLive(song, audioQuality, refusedSources[song.videoId])
+            resolved.fold(
+                onSuccess = { live ->
+                    openTrack(song, live.stream, startAtMs = 0L).fold(
+                        onSuccess = { track ->
+                            searchingBetterFor = song.videoId.takeIf { live.pendingSubstitute != null }
+                            commands += Command.TransitionTo(track, playWhenReady, effectiveFade)
+                            live.pendingSubstitute?.let { watchForUpgrade(song, it) }
+                            if (localUrl == null) DesktopAudioCache.prefetch(song)
+                        },
+                        onFailure = {
+                            loadInternal(song, playWhenReady)
+                        },
+                    )
+                },
+                onFailure = {
+                    loadInternal(song, playWhenReady)
+                },
+            )
+        }
     }
 
     /**
@@ -230,6 +281,7 @@ class DesktopPlaybackEngine(
             // literally named "Justin%20Bieber%20-%20…" and it answered ENOENT for a file that was
             // sitting right there.
             val localUrl = DesktopDownloadManager.savedFile(song)?.toAbsolutePath()?.toString()
+                ?: DesktopAudioCache.cachedFile(song.videoId)?.toAbsolutePath()?.toString()
             val resolved = localUrl?.let { Result.success(DesktopLiveResolution(DesktopStream(it))) }
                 ?: DesktopMusicSources.resolveLive(song, audioQuality, excludedSourceId)
             resolved.fold(
@@ -240,6 +292,7 @@ class DesktopPlaybackEngine(
                             searchingBetterFor = song.videoId.takeIf { live.pendingSubstitute != null }
                             commands += Command.Start(track, playWhenReady)
                             live.pendingSubstitute?.let { watchForUpgrade(song, it) }
+                            if (localUrl == null) DesktopAudioCache.prefetch(song)
                         },
                         onFailure = { failure -> retryAfterFailure(song, playWhenReady, live.stream, failure) },
                     )
@@ -479,8 +532,11 @@ class DesktopPlaybackEngine(
         nextSong = song
         // A download plays from its file, here as in [loadInternal] — never from whichever source
         // would have answered for it.
-        val local = DesktopDownloadManager.savedFile(song)?.toAbsolutePath()?.toString()?.let { DesktopStream(it) }
+        val local = (DesktopDownloadManager.savedFile(song)?.toAbsolutePath()?.toString()
+            ?: DesktopAudioCache.cachedFile(song.videoId)?.toAbsolutePath()?.toString())
+            ?.let { DesktopStream(it) }
         nextLocalStream = local
+        if (local == null) DesktopAudioCache.prefetch(song)
         // Measured on YouTube Opus (or the file) whatever will end up serving it, so Automix has
         // its analysis without anything being fetched from the source that will play it.
         if (automixEnabled && !song.isVideoOrigin) {
@@ -1174,6 +1230,7 @@ class DesktopPlaybackEngine(
                         playingUpgrade(track.song, track.stream)
                     }
                 }
+                is Command.TransitionTo -> startTransitionTo(command.track, command.playWhenReady, command.fadeSeconds)
                 is Command.SeekTo -> performSeek(command.millis)
                 Command.Reconfigure -> reconfigureSink()
                 Command.ClearUpcoming -> {
@@ -1218,6 +1275,30 @@ class DesktopPlaybackEngine(
         outgoingFilter.open()
         incomingFilter.open()
         startTrack(track, playWhenReady)
+    }
+
+    private fun startTransitionTo(track: Track, playWhenReady: Boolean, fadeSeconds: Float) {
+        val leaving = current
+        if (leaving == null || paused || !sink.isOpen) {
+            startTrack(track, playWhenReady)
+            return
+        }
+        if (upcoming !== track) {
+            upcoming?.decoder?.close()
+            upcoming = track
+        }
+        val rate = sink.format.sampleRate
+        val channels = sink.format.channels
+        val seconds = fadeSeconds.coerceIn(1.0f, 10.0f)
+        fadeTotal = (seconds * rate * channels).toInt().coerceAtLeast(1)
+        transitionTotal = fadeTotal
+        fadeRemaining = transitionTotal
+        activePlan = null
+        transitionEcho = null
+        outgoingFilter.open()
+        incomingFilter.open()
+        displaySwitched = false
+        DesktopTrackLog.log("manual crossfade into '${track.song.title}': ${seconds}s")
     }
 
     private fun startTrack(track: Track, playWhenReady: Boolean) {

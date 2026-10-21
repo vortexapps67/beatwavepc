@@ -79,16 +79,20 @@ jobs:
       - name: Build Windows packages
         shell: pwsh
         run: |
+          $v = "${{ inputs.version }}"
+          if (-not $v) { $v = "1.8.0" }
           .\gradlew.bat `
             :desktopApp:packageMsi `
             :desktopApp:packageExe `
             :desktopApp:createDistributable `
-            "-Pbeatwave.version=${{ inputs.version }}"
+            :desktopApp:windowsPortable `
+            "-Pbeatwave.version=$v"
 
       - name: Collect artifacts
         shell: pwsh
         run: |
           $v = "${{ inputs.version }}"
+          if (-not $v) { $v = "1.8.0" }
           New-Item -ItemType Directory -Force dist | Out-Null
 
           $msi = Get-ChildItem "desktopApp/build/compose/binaries/main/msi/*.msi" | Select-Object -First 1
@@ -97,18 +101,32 @@ jobs:
           if (-not $msi) { throw "No MSI package found" }
           if (-not $exe) { throw "No EXE installer found" }
 
-          Copy-Item $msi.FullName "dist/BeatWave PC-$v-windows-x64.msi"
-          Copy-Item $exe.FullName "dist/BeatWave PC-$v-windows-x64-setup.exe"
+          Copy-Item $msi.FullName "dist/BeatWave-PC-$v-windows-x64.msi"
+          Copy-Item $exe.FullName "dist/BeatWave-PC-$v-windows-x64-setup.exe"
 
-          7z a -tzip -mx=5 "dist/BeatWave PC-$v-windows-x64-portable.zip" `
-            "desktopApp/build/compose/binaries/main/app/BeatWave PC/*" | Out-Null
+          $appDir = "desktopApp/build/compose/binaries/main/app/BeatWave PC"
+          if (Test-Path $appDir) {
+            Remove-Item "$appDir\runtime\legal" -Recurse -Force -ErrorAction SilentlyContinue
+            Get-ChildItem -Path $appDir -Recurse -Filter *.pdb -ErrorAction SilentlyContinue | Remove-Item -Force
+            $unneededExes = @("keytool.exe", "kinit.exe", "klist.exe", "ktab.exe", "rmiregistry.exe", "jpackage.exe")
+            foreach ($u in $unneededExes) {
+              Remove-Item "$appDir\runtime\bin\$u" -Force -ErrorAction SilentlyContinue
+            }
+          }
+
+          7z a -tzip -mx=9 "dist/BeatWave-PC-$v-windows-x64-portable.zip" "$appDir/*" | Out-Null
+
+          $slimZip = Get-ChildItem "desktopApp/build/distributions/*-portable.zip" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($slimZip) {
+            Copy-Item $slimZip.FullName "dist/BeatWave-PC-$v-portable-slim.zip"
+          }
 
           Get-ChildItem dist | Format-Table Name, Length
 
       - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
-          name: BeatWave-PC-EXE-${{ inputs.version }}
+          name: BeatWave-PC-EXE-${{ inputs.version || '1.8.0' }}
           path: dist/*-setup.exe
           if-no-files-found: error
           retention-days: 14
@@ -116,7 +134,7 @@ jobs:
       - name: Upload MSI
         uses: actions/upload-artifact@v4
         with:
-          name: BeatWave-PC-MSI-${{ inputs.version }}
+          name: BeatWave-PC-MSI-${{ inputs.version || '1.8.0' }}
           path: dist/*.msi
           if-no-files-found: error
           retention-days: 14
@@ -124,7 +142,15 @@ jobs:
       - name: Upload portable ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: BeatWave-PC-Windows-Portable-${{ inputs.version }}
+          name: BeatWave-PC-Windows-Portable-${{ inputs.version || '1.8.0' }}
           path: dist/*-portable.zip
           if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload slim portable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: BeatWave-PC-Windows-Slim-Portable-${{ inputs.version || '1.8.0' }}
+          path: dist/*-portable-slim.zip
+          if-no-files-found: warn
           retention-days: 14

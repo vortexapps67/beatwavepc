@@ -813,13 +813,17 @@ fun BeatWaveDesktopApp() {
     }
 
     /** Opens whatever the queue is currently pointing at. */
-    fun playCurrent(startPlaying: Boolean = true) {
+    fun playCurrent(startPlaying: Boolean = true, crossfade: Boolean = true) {
         val song = liveQueue.current ?: return
         selectedSong = song
         history = (listOf(song) + history.filterNot { it.videoId == song.videoId }).take(50)
         saveQueue()
         persistence.saveHistory(history)
-        playbackEngine.load(song, startPlaying)
+        if (crossfade && playbackEngine.state.value.isPlaying) {
+            playbackEngine.transitionTo(song, startPlaying)
+        } else {
+            playbackEngine.load(song, startPlaying)
+        }
         partySyncHolder[0]?.onLocalIntent(song.videoId)
         scope.launch { DesktopScrobbling.updateNowPlaying(song) }
     }
@@ -1768,12 +1772,31 @@ fun BeatWaveDesktopApp() {
             lyricsLoading = true
             return@LaunchedEffect
         }
-        lyricsLoading = true
+        DesktopLyricsClient.cached(current, only = lyricsOnly)?.let {
+            lyrics = it
+            lyricsLoading = false
+        } ?: run {
+            lyricsLoading = true
+        }
         DesktopLyricsClient.lookup(current, length, only = lyricsOnly).fold(
-            onSuccess = { lyrics = it },
-            onFailure = { lyricsError = it.message ?: "Lyrics unavailable" },
+            onSuccess = {
+                lyrics = it
+                lyricsLoading = false
+            },
+            onFailure = {
+                if (lyrics == null) lyricsError = it.message ?: "Lyrics unavailable"
+                lyricsLoading = false
+            },
         )
         lyricsLoading = false
+    }
+
+    LaunchedEffect(liveQueue.index, liveQueue.songs.size) {
+        val ahead = liveQueue.upcoming.take(4)
+        if (ahead.isNotEmpty()) {
+            DesktopLyricsClient.prefetch(ahead)
+            DesktopAudioCache.prefetch(ahead)
+        }
     }
 
     LaunchedEffect(selectedSong?.videoId, animatedCanvas) {
