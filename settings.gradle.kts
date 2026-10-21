@@ -15,7 +15,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "BitChord"
+rootProject.name = "BeatWave-PC"
 include(":shared")
 include(":sharedUi")
 include(":desktopApp")

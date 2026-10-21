@@ -58,8 +58,8 @@ Rules:
 
 ## 4. How the app finds an update
 
-`desktopApp/src/main/kotlin/com/music/bitchord/desktop/DesktopUpdateChecker.kt`, shown as a dialog
-from `BitChordDesktopApp` in `DesktopApp.kt`:
+`desktopApp/src/main/kotlin/com/beatwave/music/desktop/DesktopUpdateChecker.kt`, shown as a dialog
+from `BeatWaveDesktopApp` in `DesktopApp.kt`:
 
 1. At launch it calls `GET https://api.github.com/repos/kushagrasinghx/BitChord/releases/latest`.
 2. It strips the `v` from `tag_name` and compares it with `bitchord.version` (numeric, dot by dot;

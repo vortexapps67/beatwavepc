@@ -49,10 +49,10 @@ jobs:
 
       - name: Run desktop tests
         if: ${{ inputs.run_tests }}
-        run: ./gradlew :desktopApp:test "-Pbitchord.version=${{ inputs.version }}"
+        run: ./gradlew :desktopApp:test "-Pbeatwave.version=${{ inputs.version }}"
 
       - name: Build DEB
-        run: ./gradlew :desktopApp:packageDeb "-Pbitchord.version=${{ inputs.version }}"
+        run: ./gradlew :desktopApp:packageDeb "-Pbeatwave.version=${{ inputs.version }}"
 
       - name: Collect package
         shell: bash
@@ -63,13 +63,13 @@ jobs:
             echo "No .deb package found"
             exit 1
           fi
-          cp "$deb" "dist/BitChord-${{ inputs.version }}-linux-amd64.deb"
+          cp "$deb" "dist/BeatWave PC-${{ inputs.version }}-linux-amd64.deb"
           ls -lh dist
 
       - name: Upload DEB artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BitChord-DEB-${{ inputs.version }}
+          name: BeatWave-PC-DEB-${{ inputs.version }}
           path: dist/*.deb
           if-no-files-found: error
           retention-days: 14

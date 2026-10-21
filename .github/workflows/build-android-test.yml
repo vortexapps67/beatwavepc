@@ -66,7 +66,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BitChord-Android-Dev-${{ github.sha }}
+          name: BeatWave-PC-Android-Dev-${{ github.sha }}
           path: app/build/outputs/apk/dev/debug/*.apk
           if-no-files-found: error
           retention-days: 7

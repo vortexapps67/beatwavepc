@@ -8,7 +8,7 @@
 # implementation that drifts.
 #
 # The JNI symbol names encode the Java package, which is why the desktop's
-# analysis classes live in `com.music.bitchord.playback.smart` exactly as
+# analysis classes live in `com.beatwave.music.playback.smart` exactly as
 # Android's do.
 
 cmake_minimum_required(VERSION 3.16)

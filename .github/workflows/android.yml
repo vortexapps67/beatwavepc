@@ -8,6 +8,7 @@ on:
 jobs:
   build-prod-release:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
     - name: Checkout Repository
@@ -20,27 +21,49 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Set up Gradle
+      uses: gradle/actions/setup-gradle@v4
+
     - name: Setup Secrets (Keystore & local.properties)
+      shell: bash
       run: |
         echo "LASTFM_API_KEY=${{ secrets.LASTFM_API_KEY }}" > local.properties
         echo "LASTFM_SECRET=${{ secrets.LASTFM_SECRET }}" >> local.properties
 
-        echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > bitchord-release.jks
-        {
-          echo "storeFile=bitchord-release.jks"
-          echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}"
-          echo "keyAlias=${{ secrets.KEY_ALIAS }}"
-          echo "keyPassword=${{ secrets.KEY_PASSWORD }}"
-        } > keystore.properties
+        if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > beatwave-release.jks
+          {
+            echo "storeFile=beatwave-release.jks"
+            echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}"
+            echo "keyAlias=${{ secrets.KEY_ALIAS }}"
+            echo "keyPassword=${{ secrets.KEY_PASSWORD }}"
+          } > keystore.properties
+        else
+          keytool -genkey -v -keystore beatwave-release.jks -alias beatwave \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass beatwave123 -keypass beatwave123 \
+            -dname "CN=BeatWave, OU=VortexApps, O=VortexApps, L=Unknown, ST=Unknown, C=US"
+          {
+            echo "storeFile=beatwave-release.jks"
+            echo "storePassword=beatwave123"
+            echo "keyAlias=beatwave"
+            echo "keyPassword=beatwave123"
+          } > keystore.properties
+        fi
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
     - name: Build Signed Prod Release APK
-      run: ./gradlew assembleProdRelease
+      run: ./gradlew :app:assembleProdRelease --stacktrace
 
     - name: Upload APK Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: bitchord-prod-release-signed
+        name: beatwave-prod-release-signed
         path: app/build/outputs/apk/prod/release/*.apk
+        if-no-files-found: error
+        retention-days: 30

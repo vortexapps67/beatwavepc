@@ -65,7 +65,7 @@ jobs:
       - name: Run desktop tests
         if: ${{ inputs.run_tests }}
         shell: pwsh
-        run: .\gradlew.bat :shared:jvmTest :desktopApp:test "-Pbitchord.version=${{ inputs.version }}"
+        run: .\gradlew.bat :shared:jvmTest :desktopApp:test "-Pbeatwave.version=${{ inputs.version }}"
 
       - name: Build Windows packages
         shell: pwsh
@@ -74,7 +74,7 @@ jobs:
             :desktopApp:packageMsi `
             :desktopApp:packageExe `
             :desktopApp:createDistributable `
-            "-Pbitchord.version=${{ inputs.version }}"
+            "-Pbeatwave.version=${{ inputs.version }}"
 
       - name: Collect artifacts
         shell: pwsh
@@ -88,18 +88,18 @@ jobs:
           if (-not $msi) { throw "No MSI package found" }
           if (-not $exe) { throw "No EXE installer found" }
 
-          Copy-Item $msi.FullName "dist/BitChord-$v-windows-x64.msi"
-          Copy-Item $exe.FullName "dist/BitChord-$v-windows-x64-setup.exe"
+          Copy-Item $msi.FullName "dist/BeatWave PC-$v-windows-x64.msi"
+          Copy-Item $exe.FullName "dist/BeatWave PC-$v-windows-x64-setup.exe"
 
-          7z a -tzip -mx=5 "dist/BitChord-$v-windows-x64-portable.zip" `
-            "desktopApp/build/compose/binaries/main/app/BitChord/*" | Out-Null
+          7z a -tzip -mx=5 "dist/BeatWave PC-$v-windows-x64-portable.zip" `
+            "desktopApp/build/compose/binaries/main/app/BeatWave PC/*" | Out-Null
 
           Get-ChildItem dist | Format-Table Name, Length
 
       - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
-          name: BitChord-EXE-${{ inputs.version }}
+          name: BeatWave-PC-EXE-${{ inputs.version }}
           path: dist/*-setup.exe
           if-no-files-found: error
           retention-days: 14
@@ -107,7 +107,7 @@ jobs:
       - name: Upload MSI
         uses: actions/upload-artifact@v4
         with:
-          name: BitChord-MSI-${{ inputs.version }}
+          name: BeatWave-PC-MSI-${{ inputs.version }}
           path: dist/*.msi
           if-no-files-found: error
           retention-days: 14
@@ -115,7 +115,7 @@ jobs:
       - name: Upload portable ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: BitChord-Windows-Portable-${{ inputs.version }}
+          name: BeatWave-PC-Windows-Portable-${{ inputs.version }}
           path: dist/*-portable.zip
           if-no-files-found: error
           retention-days: 14

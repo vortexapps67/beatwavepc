@@ -124,9 +124,9 @@ settings.
 
 ## Files
 
-- `app/src/main/java/com/music/bitchord/data/lyrics/LyricsTranslation.kt`
+- `app/src/main/java/com/beatwave/music/data/lyrics/LyricsTranslation.kt`
   contains batching, source detection, timing reconstruction and bounded caching.
-- `app/src/main/java/com/music/bitchord/ui/player/NowPlayingScreen.kt`
+- `app/src/main/java/com/beatwave/music/ui/player/NowPlayingScreen.kt`
   contains the toggle, state handling and motion response.
 - `app/src/main/res/values-*/strings.xml` localizes the new UI messages for every
   language currently offered by BitChord.
