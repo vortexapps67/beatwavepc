@@ -1,12 +1,12 @@
 <div align="center">
 
-<img src="Logo.png" alt="Original BitChord logo" width="140" />
+<img src="Logo.png" alt="Original BeatWave PC logo" width="140" />
 
-# BitChord Desktop — Revived
+# BeatWave PC
 
-**The community-led continuation of BitChord for PC.**
+**The community-led continuation of BeatWave PC for PC.**
 
-BitChord Desktop — Revived exists to continue development of the original native **BitChord Desktop** application after the upstream desktop app was discontinued. Built on the original Kotlin and Compose Multiplatform codebase, this project aims to keep the Windows and Linux desktop experience moving forward—not simply preserve it as-is.
+BeatWave PC exists to continue development of the original native **BeatWave PC** application after the upstream desktop app was discontinued. Built on the original Kotlin and Compose Multiplatform codebase, this project aims to keep the Windows and Linux desktop experience moving forward—not simply preserve it as-is.
 
 ![Status](https://img.shields.io/badge/status-revival%20in%20progress-DAA520?style=flat-square)
 ![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux-6677AA?style=flat-square)
@@ -17,35 +17,35 @@ BitChord Desktop — Revived exists to continue development of the original nati
 </div>
 
 > [!IMPORTANT]
-> **Independent community project.** This repository continues development of the original PC/desktop app after its discontinuation upstream. It is a fork of [BitChord by @kushagrasinghx](https://github.com/kushagrasinghx/BitChord), but it is **not an official continuation** and is not endorsed, maintained, or supported by the original creator or upstream maintainers. We respect the original work, preserve its attribution and license, and welcome community contributions.
+> **Independent community project.** This repository continues development of the original PC/desktop app after its discontinuation upstream. It is a fork of [BeatWave PC by @kushagrasinghx](https://github.com/kushagrasinghx/BeatWave PC), but it is **not an official continuation** and is not endorsed, maintained, or supported by the original creator or upstream maintainers. We respect the original work, preserve its attribution and license, and welcome community contributions.
 
 ## Why this project exists
 
-The original project has discontinued its native desktop app as it shifts its desktop direction toward the **Web Player**. See the upstream maintainer's [PR to remove the desktop app](https://github.com/kushagrasinghx/BitChord/pull/874).
+The original project has discontinued its native desktop app as it shifts its desktop direction toward the **Web Player**. See the upstream maintainer's [PR to remove the desktop app](https://github.com/kushagrasinghx/BeatWave PC/pull/874).
 
-We want to continue the PC app's development as a community project. The goal is not to freeze an old snapshot or create a competing replacement for BitChord. Instead, we want to **keep the native desktop edition alive while learning from the ongoing development of BitChord on other platforms**.
+We want to continue the PC app's development as a community project. The goal is not to freeze an old snapshot or create a competing replacement for BeatWave PC. Instead, we want to **keep the native desktop edition alive while learning from the ongoing development of BeatWave PC on other platforms**.
 
 ### Our direction
 
 - **Continue the PC app:** maintain the existing Kotlin/Compose desktop application and its Windows/Linux integrations.
-- **Bring useful improvements across platforms:** review features, fixes, UI ideas, and behavior developed for BitChord's mobile and web experiences, then adapt them for desktop when they make technical and UX sense.
+- **Bring useful improvements across platforms:** review features, fixes, UI ideas, and behavior developed for BeatWave PC's mobile and web experiences, then adapt them for desktop when they make technical and UX sense.
 - **Build with the community:** use feedback, bug reports, testing, and contributions to decide what to improve next.
 - **Protect reliability:** prioritize playback, keyboard navigation, window management, and platform-specific stability before claiming new features are ready.
 - **Respect the original project:** preserve upstream credit and license notices, and clearly distinguish community changes from official upstream releases.
 
-The original [BitChord repository](https://github.com/kushagrasinghx/BitChord) remains the home of the upstream project, including its mobile development and web-player direction. This revival is independent; we will selectively port compatible work rather than assume every change from another platform can be copied directly.
+The original [BeatWave PC repository](https://github.com/kushagrasinghx/BeatWave PC) remains the home of the upstream project, including its mobile development and web-player direction. This revival is independent; we will selectively port compatible work rather than assume every change from another platform can be copied directly.
 
 ## Project foundation
 
-BitChord Desktop — Revived builds on the original native desktop codebase created by [@kushagrasinghx](https://github.com/kushagrasinghx) and developed with the [BitChord contributors](https://github.com/kushagrasinghx/BitChord/graphs/contributors). This is an **independent, community-maintained fork**, not an official upstream release.
+BeatWave PC builds on the original native desktop codebase created by [@kushagrasinghx](https://github.com/kushagrasinghx) and developed with the [BeatWave PC contributors](https://github.com/kushagrasinghx/BeatWave PC/graphs/contributors). This is an **independent, community-maintained fork**, not an official upstream release.
 
 | | |
 | --- | --- |
-| Original project | [kushagrasinghx/BitChord](https://github.com/kushagrasinghx/BitChord) |
-| Community continuation | [Bntagaaa/BitChord-Desktop-Revived](https://github.com/Bntagaaa/BitChord-Desktop-Revived) |
+| Original project | [kushagrasinghx/BeatWave PC](https://github.com/kushagrasinghx/BeatWave PC) |
+| Community continuation | [Bntagaaa/BeatWave PC-Desktop-Revived](https://github.com/Bntagaaa/BeatWave PC-Desktop-Revived) |
 | Technology | Kotlin, Compose Multiplatform, Gradle |
 | Desktop targets | Windows and Linux |
-| Revival release branch | [release/v1.8.1-revived.1](https://github.com/Bntagaaa/BitChord-Desktop-Revived/tree/release/v1.8.1-revived.1) |
+| Revival release branch | [release/v1.8.1-revived.1](https://github.com/Bntagaaa/BeatWave PC-Desktop-Revived/tree/release/v1.8.1-revived.1) |
 
 Revival version numbers track this community fork's own development. A version labeled `v1.8.1-revived.1` **does not imply that every upstream v1.8.1 change has been integrated**. We review improvements from upstream, mobile, and web development selectively, adapting them to desktop rather than assuming platform-specific code is interchangeable.
 
@@ -79,11 +79,11 @@ Availability and reliability can vary by build, operating system, and upstream s
 
 ## Downloads
 
-**Community test builds:** [View this fork's Releases](https://github.com/Bntagaaa/BitChord-Desktop-Revived/releases).
+**Community test builds:** [View this fork's Releases](https://github.com/Bntagaaa/BeatWave PC-Desktop-Revived/releases).
 
 The currently published `1.8.0-test` packages are **older experimental Windows builds**, *not* a verified stable release of the revived project. Please treat them as test artifacts.
 
-Looking for the original BitChord project instead? Visit the [official upstream repository](https://github.com/kushagrasinghx/BitChord).
+Looking for the original BeatWave PC project instead? Visit the [official upstream repository](https://github.com/kushagrasinghx/BeatWave PC).
 
 ## Building from source
 
@@ -125,25 +125,25 @@ Existing documentation includes [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code
 
 ## Credits & upstream
 
-**BitChord was originally created by [@kushagrasinghx](https://github.com/kushagrasinghx).** The original concept, app, much of the desktop architecture, visual design, and countless features come from the work of the upstream creator and contributors.
+**BeatWave PC was originally created by [@kushagrasinghx](https://github.com/kushagrasinghx).** The original concept, app, much of the desktop architecture, visual design, and countless features come from the work of the upstream creator and contributors.
 
-A huge thank-you to everyone who made BitChord possible:
+A huge thank-you to everyone who made BeatWave PC possible:
 
-- **Original project and source:** [kushagrasinghx/BitChord](https://github.com/kushagrasinghx/BitChord)
-- **Original contributors:** [View upstream contributors](https://github.com/kushagrasinghx/BitChord/graphs/contributors)
-- **Original project documentation and third-party acknowledgements:** [Upstream README](https://github.com/kushagrasinghx/BitChord/blob/main/README.md)
+- **Original project and source:** [kushagrasinghx/BeatWave PC](https://github.com/kushagrasinghx/BeatWave PC)
+- **Original contributors:** [View upstream contributors](https://github.com/kushagrasinghx/BeatWave PC/graphs/contributors)
+- **Original project documentation and third-party acknowledgements:** [Upstream README](https://github.com/kushagrasinghx/BeatWave PC/blob/main/README.md)
 - **Support the original creator:** [Original creator's Ko-fi](https://ko-fi.com/kushagrasinghx)
 
-This fork does **not** claim authorship of the original BitChord project. Revival maintainers are responsible for their own changes and releases; upstream contributors should not be contacted for support with this fork.
+This fork does **not** claim authorship of the original BeatWave PC project. Revival maintainers are responsible for their own changes and releases; upstream contributors should not be contacted for support with this fork.
 
 ## License & disclaimer
 
 This project retains the original **[GNU General Public License v3.0](LICENSE)**. Modified versions and redistributions must comply with its terms, including applicable attribution, license notices, and corresponding-source obligations.
 
-BitChord Desktop — Revived is an independent third-party client. It is not affiliated with or endorsed by **YouTube, Google, Spotify**, or any other referenced service. Users are responsible for complying with relevant laws and third-party terms of service.
+BeatWave PC is an independent third-party client. It is not affiliated with or endorsed by **YouTube, Google, Spotify**, or any other referenced service. Users are responsible for complying with relevant laws and third-party terms of service.
 
 ---
 
 <div align="center">
-  <sub>Built on the work of the original BitChord community. Preserved with respect, continued with care.</sub>
+  <sub>Built on the work of the original BeatWave PC community. Preserved with respect, continued with care.</sub>
 </div>

@@ -6016,11 +6016,11 @@ private fun DesktopSettingsFooter(onLicenses: () -> Unit) {
     Text(
         text = buildAnnotatedString {
             append("beatwave $version  ")
-            withLink(LinkAnnotation.Url("https://github.com/kushagrasinghx/BeatWave PC", linkStyles)) {
+            withLink(LinkAnnotation.Url("https://github.com/vortexapps67/beatwavepc", linkStyles)) {
                 append("GitHub")
             }
             append("  ")
-            withLink(LinkAnnotation.Url("https://github.com/kushagrasinghx", linkStyles)) {
+            withLink(LinkAnnotation.Url("https://github.com/vortexapps67", linkStyles)) {
                 append("Developer")
             }
             append("  ")
