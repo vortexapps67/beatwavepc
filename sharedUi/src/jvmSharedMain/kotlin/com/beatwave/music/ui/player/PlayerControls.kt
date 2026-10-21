@@ -32,6 +32,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -709,6 +711,31 @@ private fun TransportGlyph(
     heightScale: Float = 1f,
 ) {
     val haptics = rememberHaptics()
+    val interaction = remember { MutableInteractionSource() }
+    val isPressed by interaction.collectIsPressedAsState()
+    val isHovered by interaction.collectIsHoveredAsState()
+
+    val stretchX by animateFloatAsState(
+        targetValue = when {
+            !enabled -> 1f
+            isPressed -> 1.06f
+            isHovered -> 1.05f
+            else -> 1f
+        },
+        animationSpec = spring(dampingRatio = 0.50f, stiffness = Spring.StiffnessMediumLow),
+        label = "transportStretchX",
+    )
+    val stretchY by animateFloatAsState(
+        targetValue = when {
+            !enabled -> 1f
+            isPressed -> 0.88f
+            isHovered -> 1.05f
+            else -> 1f
+        },
+        animationSpec = spring(dampingRatio = 0.50f, stiffness = Spring.StiffnessMediumLow),
+        label = "transportStretchY",
+    )
+
     // Faded rather than hidden: the row keeps its shape at the ends of a queue.
     val alpha by animateFloatAsState(
         targetValue = if (enabled) 1f else 0.3f,
@@ -717,8 +744,12 @@ private fun TransportGlyph(
     Box(
         modifier = Modifier
             .size(touchSize)
+            .graphicsLayer {
+                scaleX = stretchX
+                scaleY = stretchY * (if (heightScale != 1f) heightScale else 1f)
+            }
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interaction,
                 indication = null,
                 enabled = enabled,
             ) {
@@ -731,9 +762,7 @@ private fun TransportGlyph(
             painter = painterResource(icon),
             contentDescription = contentDescription,
             tint = Color.White.copy(alpha = alpha),
-            modifier = Modifier
-                .size(size)
-                .then(if (heightScale != 1f) Modifier.graphicsLayer { scaleY = heightScale } else Modifier),
+            modifier = Modifier.size(size),
         )
     }
 }

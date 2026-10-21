@@ -346,6 +346,15 @@ private val LocalDesktopBottomInset = staticCompositionLocalOf { 0.dp }
 
 /** Android's own edge on these bars: `Color.White.copy(alpha = 0.10f)`. */
 private val DesktopBarEdge = Color(0x1AFFFFFF)
+internal val DesktopGlassBorderBrush = Brush.linearGradient(
+    colors = listOf(
+        Color.White.copy(alpha = 0.32f),
+        Color.White.copy(alpha = 0.12f),
+        Color.White.copy(alpha = 0.04f),
+        Color.White.copy(alpha = 0.20f),
+    )
+)
+
 internal val DesktopAccent = Color.White
 
 /** Deleting, signing out, and anything that failed — the one place a colour survives, as on Android. */
@@ -4223,12 +4232,16 @@ internal fun DesktopToolbarButton(
     size: Dp = 36.dp,
     content: @Composable () -> Unit,
 ) {
+    val interaction = remember { MutableInteractionSource() }
     Box(
         Modifier
             .size(size)
+            .desktopStretchy(interactionSource = interaction, enabled = enabled)
             .clip(CircleShape)
             .desktopHoverWash()
             .clickable(
+                interactionSource = interaction,
+                indication = null,
                 enabled = enabled,
                 onClick = onClick,
             ),
@@ -4393,12 +4406,18 @@ private fun DesktopSidebarItem(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
+    val interaction = remember { MutableInteractionSource() }
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(7.dp))
-            .background(if (selected) Color.White.copy(alpha = 0.12f) else Color.Transparent)
-            .clickable(onClick = onClick)
+            .desktopStretchy(interactionSource = interaction, hoverScale = 1.025f, pressedScaleY = 0.94f, pressedScaleX = 1.015f)
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (selected) Color.White.copy(alpha = 0.14f) else Color.Transparent)
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                onClick = onClick,
+            )
             .padding(horizontal = 9.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -4476,12 +4495,18 @@ private fun DesktopFloatingNavigation(
         ) {
             tabs.forEach { (item, iconAndLabel) ->
                 val isSelected = item == selected
+                val tabInteraction = remember { MutableInteractionSource() }
                 Column(
                     Modifier
                         .weight(1f)
+                        .desktopStretchy(interactionSource = tabInteraction, hoverScale = 1.05f, pressedScaleY = 0.92f, pressedScaleX = 1.03f)
                         .clip(RoundedCornerShape(percent = 50))
                         .background(if (isSelected) DesktopAccent.copy(alpha = 0.18f) else Color.Transparent)
-                        .clickable { onDestinationSelected(item) }
+                        .clickable(
+                            interactionSource = tabInteraction,
+                            indication = null,
+                            onClick = { onDestinationSelected(item) },
+                        )
                         .padding(vertical = 8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
@@ -6695,7 +6720,18 @@ private fun Song.isNowPlaying(): Boolean = isSameTrackAs(LocalNowPlaying.current
 /** The frosted pane the floating bars are made of. */
 @Composable
 internal fun Modifier.desktopBarGlass(shape: Shape): Modifier =
-    desktopFrosted(DesktopBarGlass, tintAlpha = 0.55f).border(0.5.dp, DesktopBarEdge, shape)
+    this
+        .desktopFrosted(DesktopBarGlass, tintAlpha = 0.42f)
+        .border(1.dp, DesktopGlassBorderBrush, shape)
+        .drawBehind {
+            drawRect(
+                brush = Brush.verticalGradient(
+                    0f to Color.White.copy(alpha = 0.10f),
+                    0.3f to Color.White.copy(alpha = 0.02f),
+                    1f to Color.Transparent,
+                )
+            )
+        }
 
 /** The edge of a chrome pane that meets the page, and so has to dissolve into it. */
 internal enum class DesktopChromeEdge { NONE, BOTTOM, END }
@@ -6770,11 +6806,13 @@ private fun Modifier.desktopFrosted(
         // Spelled out rather than taken from a preset.
         blurEnabled = true
         backgroundColor = DesktopSurface
-        blurRadius = 30.dp
-        // Dark enough that white text on the pane always wins, translucent enough that the
-        // colour of what is behind it still comes through.
-        tints = listOf(HazeTint(DesktopSurface.copy(alpha = tintAlpha)))
-        noiseFactor = 0.04f
+        blurRadius = 38.dp
+        // Multi-layered frosted glass with subtle radiance and micro-etched grain
+        tints = listOf(
+            HazeTint(DesktopSurface.copy(alpha = tintAlpha)),
+            HazeTint(Color.White.copy(alpha = 0.035f)),
+        )
+        noiseFactor = 0.05f
         // Assigned either way: the scope belongs to the node and outlives the draw, so a pane that
         // stops dissolving — the leading stretch of the top bar, when the window grows back out of
         // compact — would otherwise keep the mask it was given in the other layout.

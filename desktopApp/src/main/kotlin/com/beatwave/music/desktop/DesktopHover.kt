@@ -1,6 +1,9 @@
 package com.beatwave.music.desktop
 
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -87,3 +90,58 @@ internal fun Modifier.desktopHoverWash(): Modifier = composed {
 }
 
 private const val WASH_MS = 120
+
+
+/**
+ * Tactile stretchy button modifier with organic squash and spring bounce.
+ * - On Hover: Scales up smoothly
+ * - On Press: Compresses vertically and squashes slightly wider (elastic feel)
+ * - On Release: Springs back with bouncy overshoot
+ */
+@Composable
+internal fun Modifier.desktopStretchy(
+    interactionSource: MutableInteractionSource? = null,
+    enabled: Boolean = true,
+    hoverScale: Float = 1.06f,
+    pressedScaleY: Float = 0.88f,
+    pressedScaleX: Float = 1.05f,
+): Modifier = composed {
+    val source = interactionSource ?: remember { MutableInteractionSource() }
+    val isHovered by source.collectIsHoveredAsState()
+    val isPressed by source.collectIsPressedAsState()
+
+    val scaleX by animateFloatAsState(
+        targetValue = when {
+            !enabled -> 1f
+            isPressed -> pressedScaleX
+            isHovered -> hoverScale
+            else -> 1f
+        },
+        animationSpec = spring(
+            dampingRatio = 0.48f,
+            stiffness = Spring.StiffnessMediumLow,
+        ),
+        label = "stretchyScaleX",
+    )
+
+    val scaleY by animateFloatAsState(
+        targetValue = when {
+            !enabled -> 1f
+            isPressed -> pressedScaleY
+            isHovered -> hoverScale
+            else -> 1f
+        },
+        animationSpec = spring(
+            dampingRatio = 0.48f,
+            stiffness = Spring.StiffnessMediumLow,
+        ),
+        label = "stretchyScaleY",
+    )
+
+    this
+        .hoverable(source)
+        .graphicsLayer {
+            this.scaleX = scaleX
+            this.scaleY = scaleY
+        }
+}
