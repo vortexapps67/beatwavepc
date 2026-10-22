@@ -1608,6 +1608,10 @@ class DesktopPlaybackEngine(
         } else null
         outgoingFilter.flush()
         incomingFilter.flush()
+        displaySwitched = true
+        publishTrack(incoming, isPlaying = !paused, positionUs = 0L)
+        onCrossfaded(incoming.song)
+        DesktopTrackLog.log("crossfade began: morphing into '${incoming.song.title}'")
     }
 
     /** The marker on the scrubber, showing where the mix will happen before it happens. */
@@ -1783,7 +1787,7 @@ class DesktopPlaybackEngine(
         )
 
         /** Where in a blend the player moves to the incoming song: halfway, as on Android. */
-        private const val DISPLAY_SWITCH_AT = 0.5f
+        private const val DISPLAY_SWITCH_AT = 0.01f
 
         /** Jitter tolerated in a republished beat anchor; see [publishBlend]. */
         private const val ANCHOR_TOLERANCE_NANOS = 25_000_000L

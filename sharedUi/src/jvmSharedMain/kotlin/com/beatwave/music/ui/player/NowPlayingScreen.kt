@@ -10,6 +10,10 @@ import com.beatwave.music.sharedui.resources.*
 
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.togetherWith
+import androidx.compose.ui.draw.blur
+import coil3.request.ImageRequest
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -2952,44 +2956,84 @@ fun NowPlayingScreen(
                             )
                         }
                     }
+                                        val morphEasing = remember { CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f) }
+                    var outgoingModel by remember { mutableStateOf<ImageRequest?>(null) }
+                    var incomingModel by remember { mutableStateOf(art.request) }
+                    val portraitMorphProgress = remember { Animatable(1f) }
+
+                    LaunchedEffect(art.request.data) {
+                        if (art.request.data != incomingModel.data) {
+                            outgoingModel = incomingModel
+                            incomingModel = art.request
+                            portraitMorphProgress.snapTo(0f)
+                            portraitMorphProgress.animateTo(
+                                targetValue = 1f,
+                                animationSpec = tween(durationMillis = 3500, easing = morphEasing),
+                            )
+                            outgoingModel = null
+                        }
+                    }
+
+                    val portT = portraitMorphProgress.value
+
+                    val outModel = outgoingModel
+                    if (outModel != null && portT < 1f) {
+                        val outScale = 1f - (0.08f * portT)
+                        val outRotZ = -3f * portT
+                        val outAlpha = (1f - portT).coerceIn(0f, 1f)
+                        val outBlur = (portT * 8f).dp
+                        AsyncImage(
+                            model = outModel,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    scaleX = outScale
+                                    scaleY = outScale
+                                    rotationZ = outRotZ
+                                    alpha = outAlpha
+                                }
+                                .then(if (outBlur > 0.dp) Modifier.blur(outBlur) else Modifier),
+                        )
+                    }
+
+                    val inScale = if (outgoingModel != null || portT < 1f) 1.08f - (0.08f * portT) else 1f
+                    val inRotZ = if (outgoingModel != null || portT < 1f) 3f * (1f - portT) else 0f
+                    val inAlpha = if (outgoingModel != null || portT < 1f) portT.coerceIn(0f, 1f) else 1f
+                    val inBlur = if (outgoingModel != null || portT < 1f) ((1f - portT) * 6f).dp else 0.dp
+
                     AsyncImage(
-                        // Decode at the sleeve's *expanded* size, always.
-                        // Coil otherwise sizes the decode to however large
-                        // this is when the request goes out — and changing
-                        // track from the queue does that while the sleeve is
-                        // collapsed to a thumbnail, leaving a thumbnail-sized
-                        // bitmap to be blown back up when the queue closes.
-                        // Skipping tracks with the transport keeps it sharp
-                        // only because the sleeve happens to be full size at
-                        // that moment.
-                        //
-                        // Asked for at the source's own size rather than the
-                        // sleeve's: the banner is taller than the card is
-                        // wide, and the one bitmap has to serve both shapes
-                        // with nothing to upscale between them.
-                        model = art.request,
+                        model = incomingModel,
                         contentDescription = null,
-                        // Video thumbnails are 16:9; letterboxing them inside
-                        // the square sleeve looks like a broken frame.
                         contentScale = ContentScale.Crop,
                         onState = art::onState,
-                        // TextureView-backed canvas frames can arrive
-                        // before Coil has decoded the sleeve. Alpha alone
-                        // doesn't hide this layer for that window: a
-                        // TextureView composites through its own hardware
-                        // layer, and on some devices that layer wins the
-                        // stacking order against a sibling Compose layer
-                        // even when that layer's alpha is zero — so the
-                        // still image's empty placeholder still shows
-                        // through, above a perfectly healthy animated
-                        // cover. Skipping the draw call outright leaves
-                        // nothing there to composite, in the wrong order
-                        // or otherwise; the request stays mounted so
-                        // loading still finishes in the background and
-                        // [PlayerArtwork.loaded] still flips the moment it does.
                         modifier = Modifier
                             .fillMaxSize()
-                            .drawWithContent { if (art.loaded || !canvasRendered) drawContent() },
+                            .graphicsLayer {
+                                scaleX = inScale
+                                scaleY = inScale
+                                rotationZ = inRotZ
+                                alpha = inAlpha
+                            }
+                            .then(if (inBlur > 0.dp) Modifier.blur(inBlur) else Modifier)
+                            .drawWithContent {
+                                if (art.loaded || !canvasRendered) drawContent()
+                                if (portT in 0.05f..0.95f) {
+                                    val sweepX = size.width * (portT * 1.6f - 0.3f)
+                                    drawRect(
+                                        brush = Brush.linearGradient(
+                                            colors = listOf(
+                                                Color.Transparent,
+                                                Color.White.copy(alpha = 0.28f * (1f - abs(portT - 0.5f) * 2f)),
+                                                Color.Transparent,
+                                            ),
+                                            start = Offset(sweepX - 30f, 0f),
+                                            end = Offset(sweepX + 30f, size.height),
+                                        ),
+                                    )
+                                }
+                            },
                     )
 
                     // Where the clip plays when it can't have the banner:
@@ -3197,9 +3241,21 @@ fun NowPlayingScreen(
                         // ("… (Live)") dissolves into the new one instead of
                         // snapping while the rest of the switch moves around
                         // it.
-                        Crossfade(
+                        AnimatedContent(
                             targetState = song.title to song.artist,
-                            animationSpec = tween(durationMillis = 300),
+                            transitionSpec = {
+                                val enter = slideInVertically(
+                                    animationSpec = tween(450, easing = CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)),
+                                    initialOffsetY = { 24 },
+                                ) + fadeIn(tween(400))
+
+                                val exit = slideOutVertically(
+                                    animationSpec = tween(350, easing = CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)),
+                                    targetOffsetY = { -24 },
+                                ) + fadeOut(tween(300))
+
+                                enter togetherWith exit
+                            },
                             label = "playerCredits",
                         ) {
                             val scrolling = scrolls()

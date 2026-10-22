@@ -3,6 +3,14 @@ package com.beatwave.music.ui.player
 import com.beatwave.music.sharedui.resources.*
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import kotlin.math.abs
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -290,20 +298,33 @@ internal fun LandscapeArtwork(
     overlay: @Composable BoxScope.() -> Unit = {},
 ) {
     val casts = artLoaded || canvasRendered
+    val morphEasing = remember { CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f) }
+    var outgoingRequest by remember { mutableStateOf<ImageRequest?>(null) }
+    var incomingRequest by remember { mutableStateOf(artRequest) }
+    val morphProgress = remember { Animatable(1f) }
+
+    androidx.compose.runtime.LaunchedEffect(artRequest.data) {
+        if (artRequest.data != incomingRequest.data) {
+            outgoingRequest = incomingRequest
+            incomingRequest = artRequest
+            morphProgress.snapTo(0f)
+            morphProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 3500, easing = morphEasing),
+            )
+            outgoingRequest = null
+        }
+    }
+
+    val t = morphProgress.value
+
     Box(modifier = modifier) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                // What `.shadow` and then `.clip` laid down, asked for in the
-                // layers' own blocks so a docking player can move them
-                // without recomposing the sleeve.
-                //
-                // Only cast once there is a picture: on the flat placeholder
-                // tile a shadow reads as a second, darker square.
                 .graphicsLayer {
                     shadowElevation = if (casts) 14.dp.toPx() * shadowFraction() else 0f
                     shape = sleeveShape()
-                    // As `.shadow` did: it clips only when it casts.
                     clip = casts
                 }
                 .graphicsLayer {
@@ -313,7 +334,7 @@ internal fun LandscapeArtwork(
                 .background(Color.Black.copy(alpha = 0.18f)),
             contentAlignment = Alignment.Center,
         ) {
-            if (!artLoaded && !canvasRendered) {
+            if (!artLoaded && !canvasRendered && outgoingRequest == null) {
                 Icon(
                     imageVector = BeatWaveIcons.MusicNote,
                     contentDescription = null,
@@ -321,17 +342,70 @@ internal fun LandscapeArtwork(
                     modifier = Modifier.fillMaxSize(0.36f),
                 )
             }
+
+            // Outgoing artwork layer during crossfade
+            val outReq = outgoingRequest
+            if (outReq != null && t < 1f) {
+                val outScale = 1f - (0.08f * t)
+                val outRotZ = -3f * t
+                val outAlpha = (1f - t).coerceIn(0f, 1f)
+                val outBlur = (t * 8f).dp
+
+                AsyncImage(
+                    model = outReq,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            scaleX = outScale
+                            scaleY = outScale
+                            rotationZ = outRotZ
+                            alpha = outAlpha
+                        }
+                        .then(if (outBlur > 0.dp) Modifier.blur(outBlur) else Modifier),
+                )
+            }
+
+            // Incoming artwork layer
+            val inScale = if (outgoingRequest != null || t < 1f) 1.08f - (0.08f * t) else 1f
+            val inRotZ = if (outgoingRequest != null || t < 1f) 3f * (1f - t) else 0f
+            val inAlpha = if (outgoingRequest != null || t < 1f) t.coerceIn(0f, 1f) else 1f
+            val inBlur = if (outgoingRequest != null || t < 1f) ((1f - t) * 6f).dp else 0.dp
+
             AsyncImage(
-                model = artRequest,
+                model = incomingRequest,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 onState = onArtState,
-                // Not drawn under a clip that got there first — see the
-                // portrait sleeve's note on TextureView stacking order.
                 modifier = Modifier
                     .fillMaxSize()
-                    .drawWithContent { if (artLoaded || !canvasRendered) drawContent() },
+                    .graphicsLayer {
+                        scaleX = inScale
+                        scaleY = inScale
+                        rotationZ = inRotZ
+                        alpha = inAlpha
+                    }
+                    .then(if (inBlur > 0.dp) Modifier.blur(inBlur) else Modifier)
+                    .drawWithContent {
+                        if (artLoaded || !canvasRendered) drawContent()
+                        if (t in 0.05f..0.95f) {
+                            val sweepX = size.width * (t * 1.6f - 0.3f)
+                            drawRect(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        Color.White.copy(alpha = 0.28f * (1f - abs(t - 0.5f) * 2f)),
+                                        Color.Transparent,
+                                    ),
+                                    start = Offset(sweepX - 30f, 0f),
+                                    end = Offset(sweepX + 30f, size.height),
+                                ),
+                            )
+                        }
+                    },
             )
+
             canvas?.let { clip ->
                 CanvasArtworkPlayer(
                     canvas = clip,
@@ -419,9 +493,21 @@ internal fun LandscapeCredits(
     modifier: Modifier = Modifier,
 ) {
     Row(modifier = modifier, verticalAlignment = Alignment.CenterVertically) {
-        Crossfade(
+        AnimatedContent(
             targetState = song.title to song.artist,
-            animationSpec = tween(durationMillis = 300),
+            transitionSpec = {
+                val enter = slideInVertically(
+                    animationSpec = tween(450, easing = CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)),
+                    initialOffsetY = { 24 },
+                ) + fadeIn(tween(400))
+
+                val exit = slideOutVertically(
+                    animationSpec = tween(350, easing = CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)),
+                    targetOffsetY = { -24 },
+                ) + fadeOut(tween(300))
+
+                enter togetherWith exit
+            },
             modifier = Modifier.weight(1f),
             label = "landscapeCredits",
         ) {
