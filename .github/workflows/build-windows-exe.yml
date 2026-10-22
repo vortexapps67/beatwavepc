@@ -1,4 +1,4 @@
-name: Build Windows PC App (EXE & Portable)
+name: Build Windows PC App (MSI & Portable)
 
 on:
   push:
@@ -78,10 +78,8 @@ jobs:
           if (-not $v) { $v = "3.0.0" }
           Write-Host "Building BeatWave PC version $v"
           .\gradlew.bat `
-            :desktopApp:packageExe `
             :desktopApp:packageMsi `
             :desktopApp:createDistributable `
-            :desktopApp:windowsPortable `
             "-Pbeatwave.version=$v" `
             "-Pbitchord.version=$v" `
             --stacktrace
@@ -93,22 +91,15 @@ jobs:
           if (-not $v) { $v = "3.0.0" }
           New-Item -ItemType Directory -Force dist | Out-Null
 
-          $exe = Get-ChildItem "desktopApp/build/compose/binaries/main/exe/*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
           $msi = Get-ChildItem "desktopApp/build/compose/binaries/main/msi/*.msi" -ErrorAction SilentlyContinue | Select-Object -First 1
-
-          if ($exe) {
-            Copy-Item $exe.FullName "dist/BeatWave-PC-$v-setup.exe"
-            Write-Host "Found EXE: $($exe.FullName)"
-          } else {
-            Write-Warning "No EXE found in desktopApp/build/compose/binaries/main/exe/"
-          }
-
           if ($msi) {
             Copy-Item $msi.FullName "dist/BeatWave-PC-$v.msi"
             Write-Host "Found MSI: $($msi.FullName)"
+          } else {
+            throw "No MSI package found in desktopApp/build/compose/binaries/main/msi/"
           }
 
-          # Portable packaging (Self-contained with slimmed JRE)
+          # Portable packaging (Self-contained with optimized runtime)
           $appDir = Get-ChildItem "desktopApp/build/compose/binaries/main/app" -Directory | Select-Object -First 1
           if ($appDir) {
             Write-Host "Optimizing runtime and trimming bloat from $($appDir.FullName)..."
@@ -121,31 +112,18 @@ jobs:
 
             Write-Host "Creating ultra-compressed portable zip from $($appDir.FullName)"
             7z a -tzip -mx=9 "dist/BeatWave-PC-$v-portable.zip" "$($appDir.FullName)/*" | Out-Null
-          }
-
-          # Slim portable package (without bundled JRE, runnable with system Java)
-          $slimZip = Get-ChildItem "desktopApp/build/distributions/*-portable.zip" -ErrorAction SilentlyContinue | Select-Object -First 1
-          if ($slimZip) {
-            Copy-Item $slimZip.FullName "dist/BeatWave-PC-$v-portable-slim.zip"
-            Write-Host "Found Slim Portable: $($slimZip.FullName)"
+          } else {
+            throw "No app directory found in desktopApp/build/compose/binaries/main/app/"
           }
 
           Get-ChildItem dist | Format-Table Name, Length
-
-      - name: Upload BeatWave PC Setup (EXE)
-        uses: actions/upload-artifact@v4
-        with:
-          name: BeatWave-PC-Windows-Setup-EXE
-          path: dist/*-setup.exe
-          if-no-files-found: warn
-          retention-days: 30
 
       - name: Upload BeatWave PC Installer (MSI)
         uses: actions/upload-artifact@v4
         with:
           name: BeatWave-PC-Windows-MSI
           path: dist/*.msi
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
 
       - name: Upload BeatWave PC Portable (ZIP)
@@ -153,13 +131,5 @@ jobs:
         with:
           name: BeatWave-PC-Windows-Portable-ZIP
           path: dist/*-portable.zip
-          if-no-files-found: warn
-          retention-days: 30
-
-      - name: Upload BeatWave PC Slim Portable (ZIP)
-        uses: actions/upload-artifact@v4
-        with:
-          name: BeatWave-PC-Windows-Slim-Portable-ZIP
-          path: dist/*-portable-slim.zip
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30

@@ -3930,7 +3930,7 @@ fun BeatWaveDesktopApp() {
                                     moodGenreReloads++
                                 },
                                 contentPadding = PaddingValues(bottom = sharedPagePadding.calculateBottomPadding()),
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier.weight(1f).lenisSmoothScroll(moodGenreListState),
                             )
                         }
                         destination == DesktopDestination.EXPLORE -> ExploreScreen(
@@ -3966,6 +3966,7 @@ fun BeatWaveDesktopApp() {
                             loadingMore = false,
                             onLoadMore = {},
                             listState = searchListState,
+                            modifier = Modifier.lenisSmoothScroll(searchListState),
                             scrollResetTrigger = searchScrollReset,
                             focusRequested = searchFocusRequested,
                             onFocusHandled = { searchFocusRequested = false },
@@ -5318,8 +5319,11 @@ private fun DesktopHistoryPage(
     contentPadding: PaddingValues,
     menu: (@Composable (Song) -> Unit)? = null,
 ) {
+    val historyListState = rememberLazyListState()
     DesktopPageScaffold(contentPadding) {
         LazyColumn(
+            state = historyListState,
+            modifier = Modifier.lenisSmoothScroll(historyListState),
             contentPadding = pagePadding(start = DesktopPageGutter, end = DesktopPageGutter, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
@@ -6710,8 +6714,11 @@ private fun DesktopCollectionPage(
         val seconds = songs.sumOf { it.durationText.durationMillis() / 1_000L }
         if (seconds > 0) add(formatCollectionDuration(seconds))
     }.joinToString(" • ").uppercase()
+    val collectionListState = rememberLazyListState()
     DesktopPageScaffold(contentPadding) {
         LazyColumn(
+            state = collectionListState,
+            modifier = Modifier.lenisSmoothScroll(collectionListState),
             contentPadding = pagePadding(
                 start = DesktopPageGutter,
                 top = DesktopPageGutter,
