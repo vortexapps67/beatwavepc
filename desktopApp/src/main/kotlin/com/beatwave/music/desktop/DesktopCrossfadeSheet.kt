@@ -208,7 +208,7 @@ internal fun DesktopAudioQuickDialog(
                                         Text(
                                             text = when (quality) {
                                                 VisualMorphQuality.FLUID -> "Fluid Morph"
-                                                VisualMorphQuality.SIMPLE -> "Simple"
+                                                VisualMorphQuality.CROSSFADE -> "Crossfade"
                                                 VisualMorphQuality.REDUCED -> "Reduced"
                                             },
                                             fontSize = 11.sp,

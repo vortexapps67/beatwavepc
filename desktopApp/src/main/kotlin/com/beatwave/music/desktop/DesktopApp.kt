@@ -4121,17 +4121,7 @@ private fun DesktopTopBar(
     DesktopTitleBarDragArea(Modifier.fillMaxWidth().height(64.dp)) {
         Box(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
-            // The window's own buttons live at the head of the sidebar; a compact window has no
-            // sidebar, so there they lead this bar instead.
-            if (compact && inlineCaption) {
-                Box(
-                    Modifier
-                        .fillMaxHeight()
-                        .desktopWindowGlass(DesktopChromeEdge.BOTTOM)
-                        .padding(start = 10.dp),
-                    contentAlignment = Alignment.CenterStart,
-                )
-            }
+
             Row(
                 Modifier
                     .weight(1f)
