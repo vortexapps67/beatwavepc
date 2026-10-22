@@ -674,6 +674,25 @@ fun BeatWaveDesktopApp() {
     // The three the FFmpeg engine unlocked: none of them could exist while JavaFX owned the decode,
     // because none of them can be done without the samples themselves.
     var spatialAudio by remember { mutableStateOf(persistence.boolean("spatial_audio", false)) }
+    var spatialMode by remember {
+        mutableStateOf(
+            SpatialAudioMode.from(
+                persistence.string("spatial_mode", if (persistence.boolean("spatial_audio", false)) "SURROUND_7_1" else "OFF")
+            )
+        )
+    }
+    var eightDSpeedHz by remember {
+        mutableStateOf(persistence.string("eight_d_speed", "0.125").toFloatOrNull()?.coerceIn(0.04f, 0.45f) ?: 0.125f)
+    }
+    var eightDDepth by remember {
+        mutableStateOf(persistence.string("eight_d_depth", "0.85").toFloatOrNull()?.coerceIn(0f, 1f) ?: 0.85f)
+    }
+    var surroundRoom by remember {
+        mutableStateOf(SurroundRoomPreset.from(persistence.string("surround_room", "CINEMA")))
+    }
+    var bassBoostEnabled by remember {
+        mutableStateOf(persistence.boolean("bass_boost", true))
+    }
     var dolbyAtmos by remember { mutableStateOf(persistence.boolean("dolby_atmos", true)) }
     var skipSilence by remember { mutableStateOf(persistence.boolean("skip_silence", false)) }
     var outputPrecision by remember { mutableStateOf(persistence.string("output_precision", "PCM_16")) }
@@ -1639,8 +1658,12 @@ fun BeatWaveDesktopApp() {
     LaunchedEffect(eqEnabled, eqMode, eqToneX, eqToneY, eqFocused, eqBalance, eqBands) {
         playbackEngine.setEqualizer(eqEnabled, DesktopEqualizerSettings.curve(), eqBalance)
     }
-    LaunchedEffect(spatialAudio, skipSilence, outputPrecision) {
-        playbackEngine.setSpatialAudio(spatialAudio)
+    LaunchedEffect(spatialMode, eightDSpeedHz, eightDDepth, surroundRoom, bassBoostEnabled, skipSilence, outputPrecision) {
+        playbackEngine.setSpatialAudioMode(spatialMode)
+        playbackEngine.set8DSpeed(eightDSpeedHz)
+        playbackEngine.set8DDepth(eightDDepth)
+        playbackEngine.setSurroundRoomPreset(surroundRoom)
+        playbackEngine.setHeadphoneBassBoost(bassBoostEnabled)
         playbackEngine.setSkipSilence(skipSilence)
         playbackEngine.setOutputPrecision(outputPrecision)
     }
@@ -2997,6 +3020,7 @@ fun BeatWaveDesktopApp() {
                         onOpenAccounts = { DesktopTrackLog.log("accounts: opening the switcher"); overlays.accounts = true },
                         onOpenAudioQuickDialog = { overlays.audioQuickDialog = true },
                         onOpenEqualizerDialog = { overlays.equalizerDialog = true },
+                        onOpenSpatialRadar = { overlays.spatialAudioDialog = true },
                         canGoBack = navHistory.isNotEmpty(),
                         onBack = ::goBack,
                     )
@@ -3198,6 +3222,18 @@ fun BeatWaveDesktopApp() {
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             DesktopToolbarButton(
+                                onClick = { overlays.spatialAudioDialog = true },
+                                size = 34.dp,
+                            ) {
+                                Icon(
+                                    Icons.Rounded.Headphones,
+                                    "3D Spatial Audio Radar",
+                                    tint = if (spatialMode != SpatialAudioMode.OFF) DesktopAccent else Color.White.copy(alpha = 0.85f),
+                                    modifier = Modifier.size(19.dp),
+                                )
+                            }
+                            Spacer(Modifier.width(4.dp))
+                            DesktopToolbarButton(
                                 onClick = { overlays.audioQuickDialog = true },
                                 size = 34.dp,
                             ) {
@@ -3294,6 +3330,15 @@ fun BeatWaveDesktopApp() {
                                 visualMorphQuality = it
                                 persistence.saveString("visual_morph_quality", it.name)
                             },
+                            spatialMode = spatialMode,
+                            onSpatialModeChange = {
+                                spatialMode = it
+                                playbackEngine.setSpatialAudioMode(it)
+                                persistence.saveString("spatial_mode", it.name)
+                            },
+                            onOpenSpatialRadar = {
+                                overlays.spatialAudioDialog = true
+                            },
                             onOpenFullEqualizer = {
                                 overlays.equalizerDialog = true
                             },
@@ -3303,6 +3348,43 @@ fun BeatWaveDesktopApp() {
 
                     if (overlays.equalizerDialog) {
                         DesktopEqualizerDialog(onDismiss = { overlays.equalizerDialog = false })
+                    }
+
+                    if (overlays.spatialAudioDialog) {
+                        DesktopSpatialAudioDialog(
+                            mode = spatialMode,
+                            onModeChange = {
+                                spatialMode = it
+                                playbackEngine.setSpatialAudioMode(it)
+                                persistence.saveString("spatial_mode", it.name)
+                            },
+                            eightDSpeedHz = eightDSpeedHz,
+                            onEightDSpeedChange = {
+                                eightDSpeedHz = it
+                                playbackEngine.set8DSpeed(it)
+                                persistence.saveString("eight_d_speed", it.toString())
+                            },
+                            eightDDepth = eightDDepth,
+                            onEightDDepthChange = {
+                                eightDDepth = it
+                                playbackEngine.set8DDepth(it)
+                                persistence.saveString("eight_d_depth", it.toString())
+                            },
+                            surroundRoom = surroundRoom,
+                            onSurroundRoomChange = {
+                                surroundRoom = it
+                                playbackEngine.setSurroundRoomPreset(it)
+                                persistence.saveString("surround_room", it.name)
+                            },
+                            bassBoostEnabled = bassBoostEnabled,
+                            onBassBoostChange = {
+                                bassBoostEnabled = it
+                                playbackEngine.setHeadphoneBassBoost(it)
+                                persistence.saveBoolean("bass_boost", it)
+                            },
+                            telemetryProvider = { playbackEngine.readSpatialTelemetry() },
+                            onDismissRequest = { overlays.spatialAudioDialog = false },
+                        )
                     }
 
                     if (overlays.accounts) {
@@ -4094,6 +4176,7 @@ private fun DesktopTopBar(
     onOpenAccounts: () -> Unit,
     onOpenAudioQuickDialog: () -> Unit = {},
     onOpenEqualizerDialog: () -> Unit = {},
+    onOpenSpatialRadar: () -> Unit = {},
     /** The app's one way back — every page's own arrow was folded into this. */
     canGoBack: Boolean,
     onBack: () -> Unit,
@@ -4339,6 +4422,14 @@ private fun DesktopTopBar(
                             BeatWaveIcons.Queue,
                             DesktopStrings["queue", "Queue"],
                             tint = if (sidePanel == DesktopSidePanel.QUEUE) Color.White else DesktopSecondary,
+                            modifier = Modifier.size(19.dp),
+                        )
+                    }
+                    DesktopToolbarButton(onClick = onOpenSpatialRadar, size = 32.dp) {
+                        Icon(
+                            Icons.Rounded.Headphones,
+                            "3D Spatial Audio & 7.1 Radar",
+                            tint = DesktopSecondary,
                             modifier = Modifier.size(19.dp),
                         )
                     }

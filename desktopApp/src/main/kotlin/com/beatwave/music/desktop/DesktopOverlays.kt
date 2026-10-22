@@ -33,6 +33,9 @@ internal class DesktopOverlays {
     /** Floating Equalizer dialog */
     var equalizerDialog by mutableStateOf(false)
 
+    /** 8D Spatial Audio & 7.1 Virtual Surround 3D Radar dialog */
+    var spatialAudioDialog by mutableStateOf(false)
+
     /**
      * Which page of Settings fills the page area, or none.
      */

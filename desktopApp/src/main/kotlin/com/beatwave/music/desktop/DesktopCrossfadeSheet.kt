@@ -54,6 +54,9 @@ internal fun DesktopAudioQuickDialog(
     onCrossfadeSecondsChange: (Float) -> Unit,
     visualMorphQuality: VisualMorphQuality,
     onVisualMorphQualityChange: (VisualMorphQuality) -> Unit,
+    spatialMode: SpatialAudioMode = SpatialAudioMode.OFF,
+    onSpatialModeChange: (SpatialAudioMode) -> Unit = {},
+    onOpenSpatialRadar: () -> Unit = {},
     onOpenFullEqualizer: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -290,6 +293,108 @@ internal fun DesktopAudioQuickDialog(
                             modifier = Modifier.size(32.dp),
                         ) {
                             Icon(Icons.Rounded.Tune, "Open Full Equalizer", tint = Color.White, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            // Section 3: 8D & 7.1 Spatial Audio Quick Tile
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.White.copy(alpha = 0.04f))
+                    .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+                    .padding(16.dp),
+            ) {
+                Column {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "8D & 7.1 Spatial Audio",
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White,
+                                    fontSize = 14.sp,
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Box(
+                                    Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(if (spatialMode != SpatialAudioMode.OFF) DesktopAccent.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.1f))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                                ) {
+                                    Text(
+                                        text = when (spatialMode) {
+                                            SpatialAudioMode.OFF -> "OFF"
+                                            SpatialAudioMode.EIGHT_D -> "8D ORBIT"
+                                            SpatialAudioMode.SURROUND_7_1 -> "7.1 SURROUND"
+                                        },
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (spatialMode != SpatialAudioMode.OFF) DesktopAccent else DesktopSecondary,
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = "Binaural 360° orbit & virtual surround soundstage",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = DesktopSecondary,
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(DesktopAccent.copy(alpha = 0.2f))
+                                .clickable {
+                                    onDismiss()
+                                    onOpenSpatialRadar()
+                                }
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text("3D Radar Lab", color = DesktopAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+
+                    // Mode switch chips
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        SpatialAudioMode.entries.forEach { entry ->
+                            val selected = entry == spatialMode
+                            Box(
+                                Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (selected) DesktopAccent.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.05f))
+                                    .border(1.dp, if (selected) DesktopAccent else Color.Transparent, RoundedCornerShape(8.dp))
+                                    .clickable { onSpatialModeChange(entry) }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = when (entry) {
+                                        SpatialAudioMode.OFF -> "Off (Stereo)"
+                                        SpatialAudioMode.EIGHT_D -> "8D Orbit"
+                                        SpatialAudioMode.SURROUND_7_1 -> "7.1 Surround"
+                                    },
+                                    fontSize = 11.sp,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (selected) Color.White else DesktopSecondary,
+                                )
+                            }
                         }
                     }
                 }

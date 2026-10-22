@@ -717,9 +717,9 @@ class DesktopPlaybackEngine(
     private var current: Track? = null
     private var upcoming: Track? = null
     private var speedProcessor: DesktopAudioSpeed? = null
-    /** One widener per side of a mix, because widening is a property of a track. */
-    private var spatial: DesktopSpatialAudio? = null
-    private var spatialIncoming: DesktopSpatialAudio? = null
+    /** Master Spatial Audio Engine (8D Binaural Orbit & 7.1 Virtual Surround) per mix deck. */
+    private var spatial: DesktopSpatialAudioEngine? = null
+    private var spatialIncoming: DesktopSpatialAudioEngine? = null
 
     /**
      * One equaliser over each side of a mix, matching Android's per-player pair.
@@ -1043,10 +1043,14 @@ class DesktopPlaybackEngine(
         if (track.tempoRate <= 1.0001) track.tempoRate = 1.0
     }
 
-    /** Widens one track's samples, unless the audio is Dolby Atmos. */
-    private fun widen(widener: DesktopSpatialAudio?, track: Track, samples: FloatArray, count: Int) {
-        val processor = widener ?: return
-        processor.enabled = spatialEnabled && !track.stream.isDolbyAtmos
+    /** Applies 8D Spatial Audio / 7.1 Virtual Surround acoustics, unless the stream is already Atmos. */
+    private fun widen(engine: DesktopSpatialAudioEngine?, track: Track, samples: FloatArray, count: Int) {
+        val processor = engine ?: return
+        processor.mode = if (!track.stream.isDolbyAtmos) spatialMode else SpatialAudioMode.OFF
+        processor.eightD.rotationHz = eightDSpeedHz
+        processor.eightD.depth = eightDDepth
+        processor.surround71.roomPreset = surroundRoom
+        processor.surround71.bassBoostEnabled = bassBoostEnabled
         processor.process(samples, count)
     }
 
@@ -1351,8 +1355,8 @@ class DesktopPlaybackEngine(
         sink.gain = volume
         framesWritten = sink.framesPlayed()
         speedProcessor = DesktopAudioSpeed(sink.format.channels, sink.format.sampleRate)
-        spatial = DesktopSpatialAudio(sink.format.channels, sink.format.sampleRate)
-        spatialIncoming = DesktopSpatialAudio(sink.format.channels, sink.format.sampleRate)
+        spatial = DesktopSpatialAudioEngine(sink.format.channels, sink.format.sampleRate)
+        spatialIncoming = DesktopSpatialAudioEngine(sink.format.channels, sink.format.sampleRate)
         equalizer.configure(sink.format.channels, sink.format.sampleRate)
         equalizerIncoming.configure(sink.format.channels, sink.format.sampleRate)
         silence = DesktopSilenceSkipper(sink.format.channels, sink.format.sampleRate)
@@ -1387,8 +1391,8 @@ class DesktopPlaybackEngine(
 
     private fun buildChain() {
         speedProcessor = DesktopAudioSpeed(sink.format.channels, sink.format.sampleRate)
-        spatial = DesktopSpatialAudio(sink.format.channels, sink.format.sampleRate)
-        spatialIncoming = DesktopSpatialAudio(sink.format.channels, sink.format.sampleRate)
+        spatial = DesktopSpatialAudioEngine(sink.format.channels, sink.format.sampleRate)
+        spatialIncoming = DesktopSpatialAudioEngine(sink.format.channels, sink.format.sampleRate)
         equalizer.configure(sink.format.channels, sink.format.sampleRate)
         equalizerIncoming.configure(sink.format.channels, sink.format.sampleRate)
         silence = DesktopSilenceSkipper(sink.format.channels, sink.format.sampleRate)
@@ -1698,7 +1702,11 @@ class DesktopPlaybackEngine(
     // ---- output precision ------------------------------------------------
 
     @Volatile private var preferFloat = false
-    @Volatile private var spatialEnabled = false
+    @Volatile private var spatialMode: SpatialAudioMode = SpatialAudioMode.OFF
+    @Volatile private var eightDSpeedHz: Float = 0.125f
+    @Volatile private var eightDDepth: Float = 0.85f
+    @Volatile private var surroundRoom: SurroundRoomPreset = SurroundRoomPreset.CINEMA
+    @Volatile private var bassBoostEnabled: Boolean = true
 
     @Volatile private var equalizerEnabled = false
 
@@ -1726,9 +1734,44 @@ class DesktopPlaybackEngine(
         equalizerEnabled = enabled
     }
 
-    fun setSpatialAudio(enabled: Boolean) {
-        spatialEnabled = enabled
+    fun setSpatialAudioMode(mode: SpatialAudioMode) {
+        spatialMode = mode
     }
+
+    fun getSpatialAudioMode(): SpatialAudioMode = spatialMode
+
+    fun set8DSpeed(speedHz: Float) {
+        eightDSpeedHz = speedHz.coerceIn(0.04f, 0.45f)
+    }
+
+    fun get8DSpeed(): Float = eightDSpeedHz
+
+    fun set8DDepth(depth: Float) {
+        eightDDepth = depth.coerceIn(0f, 1f)
+    }
+
+    fun get8DDepth(): Float = eightDDepth
+
+    fun setSurroundRoomPreset(preset: SurroundRoomPreset) {
+        surroundRoom = preset
+    }
+
+    fun getSurroundRoomPreset(): SurroundRoomPreset = surroundRoom
+
+    fun setHeadphoneBassBoost(enabled: Boolean) {
+        bassBoostEnabled = enabled
+    }
+
+    fun isHeadphoneBassBoost(): Boolean = bassBoostEnabled
+
+    fun readSpatialTelemetry(): SpatialAudioTelemetry =
+        spatial?.readTelemetry() ?: SpatialAudioTelemetry()
+
+    fun setSpatialAudio(enabled: Boolean) {
+        spatialMode = if (enabled) SpatialAudioMode.SURROUND_7_1 else SpatialAudioMode.OFF
+    }
+
+    fun isSpatialAudioEnabled(): Boolean = spatialMode != SpatialAudioMode.OFF
 
     /** Android's "Skip silence", on the same terms. */
     fun setSkipSilence(enabled: Boolean) {
@@ -1767,6 +1810,7 @@ class DesktopPlaybackEngine(
             bufferBytes = sink.bufferBytes,
             equalizerEnabled = equalizerEnabled,
             skipSilence = skipSilenceEnabled,
+            spatialMode = spatialMode,
         )
     }
 
