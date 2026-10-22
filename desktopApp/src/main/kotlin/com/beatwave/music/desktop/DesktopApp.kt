@@ -1,4 +1,5 @@
 package com.beatwave.music.desktop
+import androidx.compose.material.icons.rounded.Info
 
 import androidx.compose.foundation.lazy.LazyListState
 import com.beatwave.music.ui.components.LocalShelfRowChrome
@@ -477,6 +478,7 @@ private enum class DesktopDestination(val id: String, val label: String) {
     DOWNLOADS("downloads", "Downloads"),
     LOCAL_MUSIC("local-music", "Local Music"),
     SETTINGS("settings", "Settings"),
+    ABOUT("about", "About"),
 }
 
 private enum class DesktopRepeatMode {
@@ -2993,6 +2995,8 @@ fun BeatWaveDesktopApp() {
                         accountAvatar = activeAccount?.avatar
                             ?: activeAccount?.profiles?.firstOrNull()?.avatar,
                         onOpenAccounts = { DesktopTrackLog.log("accounts: opening the switcher"); overlays.accounts = true },
+                        onOpenAudioQuickDialog = { overlays.audioQuickDialog = true },
+                        onOpenEqualizerDialog = { overlays.equalizerDialog = true },
                         canGoBack = navHistory.isNotEmpty(),
                         onBack = ::goBack,
                     )
@@ -3186,6 +3190,40 @@ fun BeatWaveDesktopApp() {
                             windowWidth = windowWidth,
                             windowHeight = windowHeight,
                         )
+                        // Player top-right quick controls & window caption
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(top = 10.dp, end = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            DesktopToolbarButton(
+                                onClick = { overlays.audioQuickDialog = true },
+                                size = 34.dp,
+                            ) {
+                                Icon(
+                                    Icons.Rounded.GraphicEq,
+                                    "Crossfade & Audio",
+                                    tint = Color.White.copy(alpha = 0.85f),
+                                    modifier = Modifier.size(19.dp),
+                                )
+                            }
+                            Spacer(Modifier.width(4.dp))
+                            DesktopToolbarButton(
+                                onClick = { overlays.equalizerDialog = true },
+                                size = 34.dp,
+                            ) {
+                                Icon(
+                                    Icons.Rounded.Tune,
+                                    "Equalizer",
+                                    tint = Color.White.copy(alpha = 0.85f),
+                                    modifier = Modifier.size(19.dp),
+                                )
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            DesktopWindowButtons()
+                        }
+
                         if (playerMenuOpen) {
                             // Where the player's "…" sits: the right column's credits row, at
                             // the right edge of the centred two-column layout.
@@ -3239,6 +3277,34 @@ fun BeatWaveDesktopApp() {
                             )
                         }
                     }
+                    if (overlays.audioQuickDialog) {
+                        DesktopAudioQuickDialog(
+                            manualCrossfade = manualCrossfade,
+                            onManualCrossfadeChange = {
+                                manualCrossfade = it
+                                persistence.saveBoolean("manual_crossfade", it)
+                            },
+                            crossfadeSeconds = crossfadeSeconds,
+                            onCrossfadeSecondsChange = {
+                                crossfadeSeconds = it
+                                persistence.saveString("crossfade_seconds", it.toString())
+                            },
+                            visualMorphQuality = visualMorphQuality,
+                            onVisualMorphQualityChange = {
+                                visualMorphQuality = it
+                                persistence.saveString("visual_morph_quality", it.name)
+                            },
+                            onOpenFullEqualizer = {
+                                overlays.equalizerDialog = true
+                            },
+                            onDismiss = { overlays.audioQuickDialog = false },
+                        )
+                    }
+
+                    if (overlays.equalizerDialog) {
+                        DesktopEqualizerDialog(onDismiss = { overlays.equalizerDialog = false })
+                    }
+
                     if (overlays.accounts) {
                         DesktopAccountSelector(
                             accounts = accounts,
@@ -3679,6 +3745,7 @@ fun BeatWaveDesktopApp() {
                                     onDismiss = ::goBack,
                                 )
                                 DesktopSettingsPage.LICENSES -> DesktopLicensesPage(onDismiss = ::goBack)
+                                 DesktopSettingsPage.ABOUT -> DesktopAboutPage(contentPadding = contentPadding)
                             }
                             }
                         }
@@ -3754,6 +3821,7 @@ fun BeatWaveDesktopApp() {
                         destination == DesktopDestination.LISTEN_NOW -> HomeScreen(
                             state = homeState,
                             listState = homeListState,
+                            modifier = Modifier.lenisSmoothScroll(homeListState),
                             onItemClick = { item, shelfTitle -> openShelfItem(item, shelfTitle) },
                             onRetry = ::loadHome,
                             refreshing = false,
@@ -3786,6 +3854,7 @@ fun BeatWaveDesktopApp() {
                         destination == DesktopDestination.EXPLORE -> ExploreScreen(
                             state = exploreState,
                             listState = exploreListState,
+                            modifier = Modifier.lenisSmoothScroll(exploreListState),
                             onCategoryClick = ::openMoodGenre,
                             onRetry = { exploreReloads++ },
                             refreshing = false,
@@ -3905,6 +3974,7 @@ fun BeatWaveDesktopApp() {
                             signedIn = youtubeSignedIn,
                             state = libraryState,
                             listState = libraryListState,
+                            modifier = Modifier.lenisSmoothScroll(libraryListState),
                             onShelfItemClick = ::openLibraryItem,
                             onShelfItemLongPress = { item -> if (item.videoId != null) openMenu(item.toSong()) },
                             onNewPlaylist = { overlays.playlistDialog = true },
@@ -3981,6 +4051,9 @@ fun BeatWaveDesktopApp() {
                             contentPadding = contentPadding,
                             menu = { song -> songMenu(song) },
                         )
+                        destination == DesktopDestination.ABOUT -> DesktopAboutPage(
+                            contentPadding = contentPadding,
+                        )
                     }
                 }
                 }
@@ -4019,6 +4092,8 @@ private fun DesktopTopBar(
     sidePanel: DesktopSidePanel?,
     accountAvatar: String?,
     onOpenAccounts: () -> Unit,
+    onOpenAudioQuickDialog: () -> Unit = {},
+    onOpenEqualizerDialog: () -> Unit = {},
     /** The app's one way back — every page's own arrow was folded into this. */
     canGoBack: Boolean,
     onBack: () -> Unit,
@@ -4055,9 +4130,7 @@ private fun DesktopTopBar(
                         .desktopWindowGlass(DesktopChromeEdge.BOTTOM)
                         .padding(start = 10.dp),
                     contentAlignment = Alignment.CenterStart,
-                ) {
-                    DesktopWindowButtons()
-                }
+                )
             }
             Row(
                 Modifier
@@ -4279,7 +4352,27 @@ private fun DesktopTopBar(
                             modifier = Modifier.size(19.dp),
                         )
                     }
+                    DesktopToolbarButton(onClick = onOpenAudioQuickDialog, size = 32.dp) {
+                        Icon(
+                            Icons.Rounded.GraphicEq,
+                            "Audio & Crossfade",
+                            tint = DesktopSecondary,
+                            modifier = Modifier.size(19.dp),
+                        )
+                    }
+                    DesktopToolbarButton(onClick = onOpenEqualizerDialog, size = 32.dp) {
+                        Icon(
+                            Icons.Rounded.Tune,
+                            "Equalizer",
+                            tint = DesktopSecondary,
+                            modifier = Modifier.size(19.dp),
+                        )
+                    }
                     DesktopAccountButton(avatar = accountAvatar, onClick = onOpenAccounts)
+                    if (inlineCaption) {
+                        Spacer(Modifier.width(8.dp))
+                        DesktopWindowButtons()
+                    }
                 }
             }
             }
@@ -4372,9 +4465,7 @@ private fun DesktopSidebar(
             // three buttons, and room to take hold of the window by.
             if (inlineCaption) {
                 DesktopTitleBarDragArea(Modifier.fillMaxWidth().height(SIDEBAR_CAPTION_HEIGHT)) {
-                    Box(Modifier.fillMaxSize().padding(start = 10.dp), contentAlignment = Alignment.CenterStart) {
-                        DesktopWindowButtons()
-                    }
+                    Box(Modifier.fillMaxSize())
                 }
             }
         Column(
@@ -4451,8 +4542,12 @@ private fun DesktopSidebar(
             }
             HorizontalDivider(color = desktopChromeDivider())
             Spacer(Modifier.height(8.dp))
-            DesktopSidebarItem(Icons.Rounded.Settings, "Settings", settingsOpen) {
+            DesktopSidebarItem(Icons.Rounded.Settings, "Settings", settingsOpen && destination == DesktopDestination.SETTINGS) {
                 onOpenSettings()
+            }
+            Spacer(Modifier.height(4.dp))
+            DesktopSidebarItem(Icons.Rounded.Info, "About", destination == DesktopDestination.ABOUT) {
+                onDestinationSelected(DesktopDestination.ABOUT)
             }
         }
         }

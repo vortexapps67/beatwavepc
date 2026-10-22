@@ -1,20 +1,18 @@
 package com.beatwave.music.desktop
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
-import androidx.compose.foundation.hoverable
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.height
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -24,28 +22,30 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.drag
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.WindowScope
 import java.awt.MouseInfo
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
-// The window's own frame, drawn by the application rather than by the system.
+// Standard Windows title bar & caption controls
 
 /** The strip where the system's title bar would have been. */
 @Composable
 internal fun DesktopTitleBar() {
-    // Collected rather than read: [DesktopTitleBarSetting.active] is a plain call, so a composable
-    // that only asks it never learns the answer changed.
     val enabled by DesktopTitleBarSetting.enabled.collectAsState()
     if (!DesktopPlatform.drawsOwnWindowFrame || !enabled) return
     DesktopTitleBarDragArea(
@@ -55,7 +55,7 @@ internal fun DesktopTitleBar() {
             .desktopWindowGlass(),
     ) {
         Box(Modifier.fillMaxSize()) {
-            DesktopWindowButtons(Modifier.align(Alignment.CenterStart))
+            DesktopWindowButtons(Modifier.align(Alignment.CenterEnd))
         }
     }
 }
@@ -67,7 +67,6 @@ internal object DesktopTitleBarSetting {
 
     private val _enabled = MutableStateFlow(DesktopPersistence().boolean(KEY, false))
 
-    /** What Settings shows and writes. */
     val enabled: StateFlow<Boolean> = _enabled
 
     fun set(value: Boolean) {
@@ -100,87 +99,135 @@ internal fun DesktopTitleBarDragArea(
         Box(modifier) { content() }
         return
     }
-    // Behind the content rather than around it. Wrapped around it, the drag area saw every press
-    // in the toolbar too — dragging the volume slider moved the window with it. As a sibling
-    // underneath, anything with its own pointer input (buttons, sliders) is hit first and the
-    // press never reaches here; only empty toolbar falls through to move the window.
     Box(modifier) {
         Box(Modifier.matchParentSize().captionPress(scope, actions))
         content()
     }
 }
 
-/** The caption buttons. In the title bar when there is one, otherwise on the toolbar. */
+/**
+ * Standard Windows caption buttons (Minimize —, Maximize/Restore 🗖/🗗, Close ✕).
+ * Positioned on the top-right of the window.
+ */
 @Composable
 internal fun DesktopWindowButtons(modifier: Modifier = Modifier) {
     if (!DesktopPlatform.drawsOwnWindowFrame) return
     val actions = LocalDesktopWindowActions.current ?: return
     val maximized by DesktopWindowMode.maximized.collectAsState()
+
     Row(
-        modifier = modifier.height(CAPTION_HEIGHT).padding(start = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier.height(CAPTION_HEIGHT),
+        horizontalArrangement = Arrangement.End,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        MacCaptionButton("Close", MAC_CLOSE, onClick = actions.close) { glyph ->
-            val reach = GLYPH_HALF.toPx()
-            val line = HAIRLINE.toPx()
+        // 1. Minimize (—)
+        WindowsCaptionButton(
+            label = "Minimize",
+            isClose = false,
+            onClick = actions.minimize,
+        ) { glyphColor ->
+            val strokeW = 1.dp.toPx()
+            val halfW = 5.dp.toPx()
             drawLine(
-                color = glyph,
-                start = Offset(center.x - reach, center.y - reach),
-                end = Offset(center.x + reach, center.y + reach),
-                strokeWidth = line,
-                cap = StrokeCap.Round,
-            )
-            drawLine(
-                color = glyph,
-                start = Offset(center.x + reach, center.y - reach),
-                end = Offset(center.x - reach, center.y + reach),
-                strokeWidth = line,
-                cap = StrokeCap.Round,
+                color = glyphColor,
+                start = Offset(center.x - halfW, center.y),
+                end = Offset(center.x + halfW, center.y),
+                strokeWidth = strokeW,
+                cap = StrokeCap.Square,
             )
         }
-        MacCaptionButton("Minimize", MAC_MINIMIZE, onClick = actions.minimize) { glyph ->
-            drawLine(
-                color = glyph,
-                start = Offset(center.x - GLYPH_HALF.toPx(), center.y),
-                end = Offset(center.x + GLYPH_HALF.toPx(), center.y),
-                strokeWidth = HAIRLINE.toPx(),
-                cap = StrokeCap.Round,
-            )
-        }
-        MacCaptionButton(
-            if (maximized) "Restore" else "Maximize",
-            MAC_MAXIMIZE,
+
+        // 2. Maximize / Restore (🗖 / 🗗)
+        WindowsCaptionButton(
+            label = if (maximized) "Restore" else "Maximize",
+            isClose = false,
             onClick = actions.toggleMaximize,
-        ) { glyph ->
-            val reach = GLYPH_HALF.toPx()
-            val line = HAIRLINE.toPx()
-            // The opposing corner marks used by macOS' green zoom control. They remain legible at
-            // 100% Windows scaling, unlike a tiny outlined square.
-            drawLine(glyph, Offset(center.x - reach, center.y + reach), Offset(center.x + reach, center.y - reach), line, StrokeCap.Round)
-            drawLine(glyph, Offset(center.x + reach, center.y - reach), Offset(center.x + 1.dp.toPx(), center.y - reach), line, StrokeCap.Round)
-            drawLine(glyph, Offset(center.x + reach, center.y - reach), Offset(center.x + reach, center.y - 1.dp.toPx()), line, StrokeCap.Round)
-            drawLine(glyph, Offset(center.x - reach, center.y + reach), Offset(center.x - 1.dp.toPx(), center.y + reach), line, StrokeCap.Round)
-            drawLine(glyph, Offset(center.x - reach, center.y + reach), Offset(center.x - reach, center.y + 1.dp.toPx()), line, StrokeCap.Round)
+        ) { glyphColor ->
+            val strokeW = 1.dp.toPx()
+            if (!maximized) {
+                // Single square outline (10x10)
+                val half = 4.5.dp.toPx()
+                drawRect(
+                    color = glyphColor,
+                    topLeft = Offset(center.x - half, center.y - half),
+                    size = Size(half * 2f, half * 2f),
+                    style = Stroke(width = strokeW),
+                )
+            } else {
+                // Two overlapping rectangles (Restore)
+                val sizePx = 7.dp.toPx()
+                val off = 2.dp.toPx()
+                // Back square
+                drawRect(
+                    color = glyphColor,
+                    topLeft = Offset(center.x - sizePx / 2f + off, center.y - sizePx / 2f - off),
+                    size = Size(sizePx, sizePx),
+                    style = Stroke(width = strokeW),
+                )
+                // Front square
+                drawRect(
+                    color = glyphColor,
+                    topLeft = Offset(center.x - sizePx / 2f - 1.dp.toPx(), center.y - sizePx / 2f + 1.dp.toPx()),
+                    size = Size(sizePx, sizePx),
+                    style = Stroke(width = strokeW),
+                )
+            }
+        }
+
+        // 3. Close (✕)
+        WindowsCaptionButton(
+            label = "Close",
+            isClose = true,
+            onClick = actions.close,
+        ) { glyphColor ->
+            val half = 4.5.dp.toPx()
+            val strokeW = 1.dp.toPx()
+            drawLine(
+                color = glyphColor,
+                start = Offset(center.x - half, center.y - half),
+                end = Offset(center.x + half, center.y + half),
+                strokeWidth = strokeW,
+                cap = StrokeCap.Square,
+            )
+            drawLine(
+                color = glyphColor,
+                start = Offset(center.x + half, center.y - half),
+                end = Offset(center.x - half, center.y + half),
+                strokeWidth = strokeW,
+                cap = StrokeCap.Square,
+            )
         }
     }
 }
 
 @Composable
-private fun MacCaptionButton(
+private fun WindowsCaptionButton(
     label: String,
-    fill: Color,
+    isClose: Boolean,
     onClick: () -> Unit,
     glyph: androidx.compose.ui.graphics.drawscope.DrawScope.(Color) -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val hovered by interaction.collectIsHoveredAsState()
+
+    val bg = when {
+        hovered && isClose -> WIN_CLOSE_HOVER_BG
+        hovered -> WIN_HOVER_BG
+        else -> Color.Transparent
+    }
+
+    val glyphColor = when {
+        hovered && isClose -> Color.White
+        hovered -> Color.White
+        else -> WIN_NORMAL_GLYPH
+    }
+
     Box(
         Modifier
-            .size(CAPTION_TOUCH_SIZE)
+            .width(WIN_BUTTON_WIDTH)
+            .height(CAPTION_HEIGHT)
+            .background(bg)
             .hoverable(interaction)
-            // The arrow, not the hand: this is window furniture, and the pointer says so before the
-            // click does.
             .pointerHoverIcon(PointerIcon.Default)
             .clickable(
                 interactionSource = interaction,
@@ -189,41 +236,22 @@ private fun MacCaptionButton(
             )
             .semantics { contentDescription = label }
             .drawBehind {
-                drawCircle(fill, radius = MAC_DOT_RADIUS.toPx())
-                drawCircle(MAC_DOT_BORDER, radius = MAC_DOT_RADIUS.toPx(), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 0.5.dp.toPx()))
-                if (hovered) glyph(MAC_GLYPH)
+                glyph(glyphColor)
             },
         contentAlignment = Alignment.Center,
     ) {}
 }
 
-/**
- * The platform's own caption metrics, which is what makes these read as the window's controls
- * rather than the application's.
- */
-private val CAPTION_TOUCH_SIZE = 20.dp
-private val CAPTION_HEIGHT = 24.dp
-private val MAC_DOT_RADIUS = 6.dp
-private val MAC_DOT_BORDER = Color(0x33000000)
+/** Standard Windows caption button metrics */
+private val WIN_BUTTON_WIDTH = 46.dp
+private val CAPTION_HEIGHT = 32.dp
 
-/** Half the width of a glyph, and the weight every one of them is drawn at. */
-private val GLYPH_HALF = 2.5.dp
-private val HAIRLINE = 0.75.dp
-
-private val MAC_CLOSE = Color(0xFFFF5F57)
-private val MAC_MINIMIZE = Color(0xFFFFBD2E)
-private val MAC_MAXIMIZE = Color(0xFF28C840)
-private val MAC_GLYPH = Color(0xB3000000)
+private val WIN_NORMAL_GLYPH = Color(0xFFCCCCCC)
+private val WIN_HOVER_BG = Color(0x1FFFFFFF)
+private val WIN_CLOSE_HOVER_BG = Color(0xFFE81123)
 
 /**
- * A press on empty caption: moves the window, and a second one in quick succession maximizes it,
- * the way the system caption always has.
- *
- * On Windows the move is handed to the system ([DesktopWindowsFrame.startDrag]), which runs its own
- * move loop — DWM slides the window, Aero Snap works, and no edge is left exposed to paint white.
- * The double click is counted here rather than left to Windows: the area is client area as far as
- * Windows knows, so it never sends the caption's own double click. Without the native frame the
- * window is moved from the pointer, as WindowDraggableArea did.
+ * A press on empty caption: moves the window, and a second one in quick succession maximizes it.
  */
 private fun Modifier.captionPress(scope: WindowScope, actions: DesktopWindowActions?): Modifier =
     pointerInput(scope, actions) {

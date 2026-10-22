@@ -1,149 +1,99 @@
 <div align="center">
 
-<img src="Logo.png" alt="Original BeatWave PC logo" width="140" />
+<img src="Logo.png" alt="BeatWave PC Logo" width="140" />
 
 # BeatWave PC
 
-**The community-led continuation of BeatWave PC for PC.**
+**The Ultimate Ad-Free, Hi-Res Desktop Music Player**
 
-BeatWave PC exists to continue development of the original native **BeatWave PC** application after the upstream desktop app was discontinued. Built on the original Kotlin and Compose Multiplatform codebase, this project aims to keep the Windows and Linux desktop experience moving forward—not simply preserve it as-is.
+Crafted with passion by **[Vortex Apps](https://github.com/vortexapps)** · Powered by Kotlin & Compose Multiplatform
 
-![Status](https://img.shields.io/badge/status-revival%20in%20progress-DAA520?style=flat-square)
-![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux-6677AA?style=flat-square)
-[![GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-555555?style=flat-square)](LICENSE)
+[![Version](https://img.shields.io/badge/version-3.0.0-00B4D8?style=flat-square)](https://github.com/vortexapps67/beatwavepc/releases)
+[![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20Linux-7B2CBF?style=flat-square)](https://github.com/vortexapps67/beatwavepc/releases)
+[![License](https://img.shields.io/badge/license-GPL--3.0-2EC4B6?style=flat-square)](LICENSE)
+[![Website](https://img.shields.io/badge/website-beatwave.de5.net-E76F51?style=flat-square)](https://beatwave.de5.net)
 
-[**Downloads**](#downloads) · [**Features**](#features) · [**Build**](#building-from-source) · [**Roadmap**](#roadmap) · [**Credits**](#credits--upstream)
+[**Downloads**](#-downloads) · [**Features**](#-features) · [**Android Companion**](#-android-app) · [**Support**](#-support--donations) · [**Building**](#-building-from-source)
 
 </div>
-
-> [!IMPORTANT]
-> **Independent community project.** This repository continues development of the original PC/desktop app after its discontinuation upstream. It is a fork of [BeatWave PC by @kushagrasinghx](https://github.com/kushagrasinghx/BeatWave PC), but it is **not an official continuation** and is not endorsed, maintained, or supported by the original creator or upstream maintainers. We respect the original work, preserve its attribution and license, and welcome community contributions.
-
-## Why this project exists
-
-The original project has discontinued its native desktop app as it shifts its desktop direction toward the **Web Player**. See the upstream maintainer's [PR to remove the desktop app](https://github.com/kushagrasinghx/BeatWave PC/pull/874).
-
-We want to continue the PC app's development as a community project. The goal is not to freeze an old snapshot or create a competing replacement for BeatWave PC. Instead, we want to **keep the native desktop edition alive while learning from the ongoing development of BeatWave PC on other platforms**.
-
-### Our direction
-
-- **Continue the PC app:** maintain the existing Kotlin/Compose desktop application and its Windows/Linux integrations.
-- **Bring useful improvements across platforms:** review features, fixes, UI ideas, and behavior developed for BeatWave PC's mobile and web experiences, then adapt them for desktop when they make technical and UX sense.
-- **Build with the community:** use feedback, bug reports, testing, and contributions to decide what to improve next.
-- **Protect reliability:** prioritize playback, keyboard navigation, window management, and platform-specific stability before claiming new features are ready.
-- **Respect the original project:** preserve upstream credit and license notices, and clearly distinguish community changes from official upstream releases.
-
-The original [BeatWave PC repository](https://github.com/kushagrasinghx/BeatWave PC) remains the home of the upstream project, including its mobile development and web-player direction. This revival is independent; we will selectively port compatible work rather than assume every change from another platform can be copied directly.
-
-## Project foundation
-
-BeatWave PC builds on the original native desktop codebase created by [@kushagrasinghx](https://github.com/kushagrasinghx) and developed with the [BeatWave PC contributors](https://github.com/kushagrasinghx/BeatWave PC/graphs/contributors). This is an **independent, community-maintained fork**, not an official upstream release.
-
-| | |
-| --- | --- |
-| Original project | [kushagrasinghx/BeatWave PC](https://github.com/kushagrasinghx/BeatWave PC) |
-| Community continuation | [Bntagaaa/BeatWave PC-Desktop-Revived](https://github.com/Bntagaaa/BeatWave PC-Desktop-Revived) |
-| Technology | Kotlin, Compose Multiplatform, Gradle |
-| Desktop targets | Windows and Linux |
-| Revival release branch | [release/v1.8.1-revived.1](https://github.com/Bntagaaa/BeatWave PC-Desktop-Revived/tree/release/v1.8.1-revived.1) |
-
-Revival version numbers track this community fork's own development. A version labeled `v1.8.1-revived.1` **does not imply that every upstream v1.8.1 change has been integrated**. We review improvements from upstream, mobile, and web development selectively, adapting them to desktop rather than assuming platform-specific code is interchangeable.
-
-## Project status
-
-> [!WARNING]
-> **Revival in progress.** This is an early community effort, not a claim that all desktop bugs are fixed or that a new stable release is ready. Features and fixes developed on experimental branches may not yet be present in the default branch or downloadable builds.
-
-| Area | Current direction |
-| --- | --- |
-| Windows | Preserve and stabilize the native desktop app |
-| Linux | Maintain desktop support, including window-manager compatibility |
-| macOS | Not currently a configured/supported desktop target |
-| Releases | Community testing builds first; stable releases after verification |
-| Cross-platform development | Review and adapt useful mobile/web improvements where technically compatible |
-| Community | Prioritize user feedback, testing, and contributions |
-| Upstream updates | Selectively port compatible changes while preserving desktop-specific behavior |
-
-## Features
-
-The existing desktop codebase includes:
-
-- **YouTube Music** search, browsing, and playback.
-- **Local library** support and downloads.
-- **Lyrics** with synced display and multiple provider integrations.
-- **Audio features** including crossfade, equalizer, and Automix (beta).
-- **Integrations** such as Spotify library access, Discord Rich Presence, and scrobbling.
-- **Native desktop controls** and media integrations for supported operating systems.
-
-Availability and reliability can vary by build, operating system, and upstream service changes. We are actively prioritizing stability over adding features that are not yet dependable.
-
-## Downloads
-
-**Community test builds:** [View this fork's Releases](https://github.com/Bntagaaa/BeatWave PC-Desktop-Revived/releases).
-
-The currently published `1.8.0-test` packages are **older experimental Windows builds**, *not* a verified stable release of the revived project. Please treat them as test artifacts.
-
-Looking for the original BeatWave PC project instead? Visit the [official upstream repository](https://github.com/kushagrasinghx/BeatWave PC).
-
-## Building from source
-
-The existing desktop target uses **Java 21** and **Compose Multiplatform**.
-
-**Windows** (PowerShell or Command Prompt):
-
-```powershell
-.\gradlew.bat :desktopApp:run
-```
-
-**Linux**:
-
-```bash
-./gradlew :desktopApp:run
-```
-
-Linux requires the appropriate system graphics/audio libraries and native dependencies. See [DESKTOP.md](DESKTOP.md) for the inherited desktop setup and packaging notes. **Note:** portions of that document still refer to historical upstream releases and are being reviewed for this fork.
-
-## Roadmap
-
-Our priorities (not promises of completed work):
-
-- [ ] Maintain a reliable, buildable baseline for the original desktop client.
-- [ ] Review useful mobile and web improvements for possible desktop adoption.
-- [ ] Investigate playback stalls and decoder lifecycle issues.
-- [ ] Improve native window behavior on Windows and Linux, including Wayland compositors.
-- [ ] Refine keyboard shortcuts, focus recovery, Quick Search, and desktop-specific workflows.
-- [ ] Make it easy for the community to report issues, test builds, and contribute fixes.
-- [ ] Maintain independent Windows/Linux build checks and clearly labeled community releases.
-
-Issues and feature branches may contain work in progress; only tested and merged changes should be described as shipped.
-
-## Contributing
-
-Contributions, bug reports, and testing are welcome. Please open an issue with your operating system, exact reproduction steps, logs if available, and the build or commit tested. Keep pull requests focused and note which environments you tested.
-
-Existing documentation includes [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). Some inherited upstream workflow instructions may still need adaptation for this community fork.
-
-## Credits & upstream
-
-**BeatWave PC was originally created by [@kushagrasinghx](https://github.com/kushagrasinghx).** The original concept, app, much of the desktop architecture, visual design, and countless features come from the work of the upstream creator and contributors.
-
-A huge thank-you to everyone who made BeatWave PC possible:
-
-- **Original project and source:** [kushagrasinghx/BeatWave PC](https://github.com/kushagrasinghx/BeatWave PC)
-- **Original contributors:** [View upstream contributors](https://github.com/kushagrasinghx/BeatWave PC/graphs/contributors)
-- **Original project documentation and third-party acknowledgements:** [Upstream README](https://github.com/kushagrasinghx/BeatWave PC/blob/main/README.md)
-- **Support the original creator:** [Original creator's Ko-fi](https://ko-fi.com/kushagrasinghx)
-
-This fork does **not** claim authorship of the original BeatWave PC project. Revival maintainers are responsible for their own changes and releases; upstream contributors should not be contacted for support with this fork.
-
-## License & disclaimer
-
-This project retains the original **[GNU General Public License v3.0](LICENSE)**. Modified versions and redistributions must comply with its terms, including applicable attribution, license notices, and corresponding-source obligations.
-
-BeatWave PC is an independent third-party client. It is not affiliated with or endorsed by **YouTube, Google, Spotify**, or any other referenced service. Users are responsible for complying with relevant laws and third-party terms of service.
 
 ---
 
-<div align="center">
-  <sub>Built on the work of the original BeatWave PC community. Preserved with respect, continued with care.</sub>
-</div>
+## 🌊 Overview
+
+**BeatWave PC** is a modern, high-fidelity native desktop music player that brings the beloved ad-free streaming experience of BeatWave to Windows and Linux. Enjoy unlimited music streaming from YouTube Music with studio-grade audio processing, seamless crossfading, synchronized lyrics, and a fluid, hardware-accelerated interface.
+
+---
+
+## ✨ Features
+
+- **⚡ Dual-Deck Audio Engine**: True dual-deck crossfade engine powered by native audio gain nodes. Seamlessly blend between tracks on manual skips or track endings with an equal-power trigonometric curve.
+- **🎨 Fluid Album Art Morph**: Liquid glass transitions and organic cubic-bezier scaling between track covers, paired with dynamic ambient mesh glows that breathe with your music.
+- **🎚️ 10-Band Equalizer**: Comprehensive audio shaping with custom presets (Bass Boost, Vocal, Rock, Pop, Electronic) and tone balance sliders directly accessible from the player.
+- **📜 Synced Word & Line Lyrics**: Syllable-timed lyrics with multiple fallback providers (Genius, LrcLib, YouTube, and embedded tags), word-by-word highlighting, and translation support.
+- **🎧 High-Resolution Playback**: Lossless FLAC, Hi-Res audio decoding, Opus stream optimization, and local offline caching for instantaneous playback.
+- **🪟 Native Windows Feel**: Standard Windows caption controls, Windows Media Overlay (SMTC) integration, taskbar audio controls, and Lenis-inspired smooth inertia scrolling.
+- **🚫 Zero Telemetry & 100% Ad-Free**: No trackers, no ad breaks, no forced accounts, and completely free and open-source.
+
+---
+
+## 📦 Downloads
+
+Grab the latest **v3.0.0** packages for Windows:
+
+| Package | Format | Description |
+| :--- | :--- | :--- |
+| **BeatWave PC Setup** | `.exe` | Recommended installer with automatic shortcuts and desktop integration |
+| **BeatWave PC Portable** | `.zip` | Zero-install standalone archive. Extract and run `BeatWave PC.exe` |
+| **BeatWave PC Slim Portable** | `.zip` | Lightweight standalone distribution with streamlined dependencies |
+| **BeatWave PC Installer** | `.msi` | Enterprise/standard Windows Installer package |
+
+👉 **[Download All Releases on GitHub](https://github.com/vortexapps67/beatwavepc/releases/latest)**
+
+---
+
+## 📱 Android App
+
+Looking for BeatWave on mobile? Get the Android companion app featuring an iOS-inspired Liquid Glass interface, real-time background blur, and offline download support.
+
+🌐 **Website:** [beatwave.de5.net](https://beatwave.de5.net)  
+📲 **Download APK:** [beatwave.de5.net](https://beatwave.de5.net)
+
+---
+
+## 💖 Support & Donations
+
+BeatWave is developed independently by **Vortex Apps**. If you love the app and want to support ongoing development, server costs, and new features:
+
+- **UPI ID:** `akshanshsinha67@axl`
+- **UPI QR Code:** Scan `Upi_support.png` via Google Pay, PhonePe, or Paytm.
+- **Instagram:** [@vortex.apps](https://instagram.com/vortex.apps)
+- **GitHub:** [@vortexapps](https://github.com/vortexapps)
+
+---
+
+## 🛠️ Building from Source
+
+### Prerequisites
+- **JDK 21** or later
+- **Gradle 8.11+** (or use bundled `gradlew`)
+- **Windows 10/11** (x64) or **Linux** (x86_64)
+
+### Run Locally
+```powershell
+# Run the Desktop app in development mode
+.\gradlew.bat :desktopApp:run
+```
+
+### Build Installers & Packages
+```powershell
+# Build Windows EXE, MSI and Portable distributions
+.\gradlew.bat :desktopApp:packageExe :desktopApp:packageMsi :desktopApp:packageZip
+```
+
+---
+
+## 📄 License & Attribution
+
+BeatWave PC is released under the **GNU General Public License v3.0** (GPL-3.0).  
+Originally built upon the foundational work of the open-source community and continued by [Vortex Apps](https://github.com/vortexapps).
