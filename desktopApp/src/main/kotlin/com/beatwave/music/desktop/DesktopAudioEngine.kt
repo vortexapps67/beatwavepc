@@ -220,6 +220,9 @@ class DesktopPlaybackEngine(
             commands += Command.TransitionTo(up, playWhenReady, effectiveFade)
             return
         }
+        if (up != null) {
+            clearUpcoming()
+        }
 
         resolveJob?.cancel()
         upgradeJob?.cancel()

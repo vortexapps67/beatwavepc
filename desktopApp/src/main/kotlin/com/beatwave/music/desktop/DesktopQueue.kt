@@ -57,9 +57,9 @@ internal data class DesktopQueue(
      * taken it, wrapping only where repeat-all's crossfade did.
      */
     fun afterHandoffTo(songId: String): DesktopQueue = when {
-        songs.getOrNull(index + 1)?.videoId == songId -> next()
-        // Already there: Next or a queue pick got in ahead of the handoff's callback.
+        // Already there: A song click, queue pick, or fast skip got in ahead of the handoff's callback.
         current?.videoId == songId -> this
+        songs.getOrNull(index + 1)?.videoId == songId -> next()
         !hasNext && songs.firstOrNull()?.videoId == songId -> copy(index = 0).afterTransition()
         else -> songs.indices
             .firstOrNull { it > index && songs[it].videoId == songId }
