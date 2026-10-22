@@ -112,7 +112,7 @@ private fun desktopMain() = application {
                 (openingSize.width.value * transform.scaleX).roundToInt(),
                 (openingSize.height.value * transform.scaleY).roundToInt(),
             )
-            if (DesktopPlatform.isWindows && DesktopWindowsFrame.install("BitChord")) {
+            if (DesktopPlatform.isWindows && DesktopWindowsFrame.install("BeatWave PC")) {
                 DesktopWindowBackdrop.apply()
             }
         }

@@ -298,7 +298,7 @@ internal fun LandscapeArtwork(
     overlay: @Composable BoxScope.() -> Unit = {},
 ) {
     val casts = artLoaded || canvasRendered
-    val morphEasing = remember { CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f) }
+    val morphEasing = remember { CubicBezierEasing(0.22f, 1.0f, 0.36f, 1.0f) }
     var outgoingRequest by remember { mutableStateOf<ImageRequest?>(null) }
     var incomingRequest by remember { mutableStateOf(artRequest) }
     val morphProgress = remember { Animatable(1f) }
@@ -310,7 +310,7 @@ internal fun LandscapeArtwork(
             morphProgress.snapTo(0f)
             morphProgress.animateTo(
                 targetValue = 1f,
-                animationSpec = tween(durationMillis = 3500, easing = morphEasing),
+                animationSpec = tween(durationMillis = 650, easing = morphEasing),
             )
             outgoingRequest = null
         }
@@ -497,12 +497,12 @@ internal fun LandscapeCredits(
             targetState = song.title to song.artist,
             transitionSpec = {
                 val enter = slideInVertically(
-                    animationSpec = tween(450, easing = CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)),
+                    animationSpec = tween(450, easing = CubicBezierEasing(0.22f, 1.0f, 0.36f, 1.0f)),
                     initialOffsetY = { 24 },
                 ) + fadeIn(tween(400))
 
                 val exit = slideOutVertically(
-                    animationSpec = tween(350, easing = CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)),
+                    animationSpec = tween(350, easing = CubicBezierEasing(0.22f, 1.0f, 0.36f, 1.0f)),
                     targetOffsetY = { -24 },
                 ) + fadeOut(tween(300))
 

@@ -35,7 +35,7 @@ internal object DesktopUpdateChecker {
     private const val LATEST_RELEASE_URL =
         "https://api.github.com/repos/vortexapps67/beatwavepc/releases/latest"
 
-    val currentVersion: String = System.getProperty("beatwave.version") ?: System.getProperty("bitchord.version") ?: "1.8-beta1"
+    val currentVersion: String = System.getProperty("beatwave.version") ?: System.getProperty("bitchord.version") ?: "3.0.0"
 
     private val json = Json { ignoreUnknownKeys = true }
 

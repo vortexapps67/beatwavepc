@@ -15,7 +15,7 @@ on:
       version:
         description: "Package version"
         required: false
-        default: "1.8.0"
+        default: "3.0.0"
       run_tests:
         description: "Run tests before packaging"
         required: false
@@ -75,7 +75,7 @@ jobs:
         shell: pwsh
         run: |
           $v = "${{ inputs.version }}"
-          if (-not $v) { $v = "1.8.0" }
+          if (-not $v) { $v = "3.0.0" }
           Write-Host "Building BeatWave PC version $v"
           .\gradlew.bat `
             :desktopApp:packageExe `
@@ -90,7 +90,7 @@ jobs:
         shell: pwsh
         run: |
           $v = "${{ inputs.version }}"
-          if (-not $v) { $v = "1.8.0" }
+          if (-not $v) { $v = "3.0.0" }
           New-Item -ItemType Directory -Force dist | Out-Null
 
           $exe = Get-ChildItem "desktopApp/build/compose/binaries/main/exe/*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1

@@ -117,8 +117,8 @@ internal fun DesktopWindowButtons(modifier: Modifier = Modifier) {
     val actions = LocalDesktopWindowActions.current ?: return
     val maximized by DesktopWindowMode.maximized.collectAsState()
     Row(
-        modifier = modifier.height(CAPTION_HEIGHT).padding(start = 2.dp),
-        horizontalArrangement = Arrangement.spacedBy(0.dp),
+        modifier = modifier.height(CAPTION_HEIGHT).padding(start = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         MacCaptionButton("Close", MAC_CLOSE, onClick = actions.close) { glyph ->
@@ -190,6 +190,7 @@ private fun MacCaptionButton(
             .semantics { contentDescription = label }
             .drawBehind {
                 drawCircle(fill, radius = MAC_DOT_RADIUS.toPx())
+                drawCircle(MAC_DOT_BORDER, radius = MAC_DOT_RADIUS.toPx(), style = androidx.compose.ui.graphics.drawscope.Stroke(width = 0.5.dp.toPx()))
                 if (hovered) glyph(MAC_GLYPH)
             },
         contentAlignment = Alignment.Center,
@@ -200,9 +201,10 @@ private fun MacCaptionButton(
  * The platform's own caption metrics, which is what makes these read as the window's controls
  * rather than the application's.
  */
-private val CAPTION_TOUCH_SIZE = 22.dp
+private val CAPTION_TOUCH_SIZE = 20.dp
 private val CAPTION_HEIGHT = 24.dp
 private val MAC_DOT_RADIUS = 6.dp
+private val MAC_DOT_BORDER = Color(0x33000000)
 
 /** Half the width of a glyph, and the weight every one of them is drawn at. */
 private val GLYPH_HALF = 2.5.dp

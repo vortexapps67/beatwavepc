@@ -206,12 +206,12 @@ internal class DesktopStatusNotifierController(
 
     private fun icons(): List<TrayPixmap> = synchronized(lock) { iconPixmaps }
 
-    private fun tooltipTitle(): String = synchronized(lock) { nowPlaying } ?: "BitChord"
+    private fun tooltipTitle(): String = synchronized(lock) { nowPlaying } ?: "BeatWave PC"
 
     private fun itemProperties(): Map<String, Variant<*>> = mapOf(
         "Category" to Variant("ApplicationStatus"),
         "Id" to Variant("bitchord"),
-        "Title" to Variant("BitChord"),
+        "Title" to Variant("BeatWave PC"),
         "Status" to Variant("Active"),
         // The logo itself when it has been rendered, and a themed name as the fallback for a host
         // that ignores pixmaps.

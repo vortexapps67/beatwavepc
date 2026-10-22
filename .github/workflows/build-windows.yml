@@ -15,7 +15,7 @@ on:
       version:
         description: "Package version (without leading v)"
         required: false
-        default: "1.8.0-test"
+        default: "3.0.0-test"
       run_tests:
         description: "Run desktop tests before packaging"
         required: false
@@ -80,7 +80,7 @@ jobs:
         shell: pwsh
         run: |
           $v = "${{ inputs.version }}"
-          if (-not $v) { $v = "1.8.0" }
+          if (-not $v) { $v = "3.0.0" }
           .\gradlew.bat `
             :desktopApp:packageMsi `
             :desktopApp:packageExe `
@@ -92,7 +92,7 @@ jobs:
         shell: pwsh
         run: |
           $v = "${{ inputs.version }}"
-          if (-not $v) { $v = "1.8.0" }
+          if (-not $v) { $v = "3.0.0" }
           New-Item -ItemType Directory -Force dist | Out-Null
 
           $msi = Get-ChildItem "desktopApp/build/compose/binaries/main/msi/*.msi" | Select-Object -First 1
@@ -126,7 +126,7 @@ jobs:
       - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
-          name: BeatWave-PC-EXE-${{ inputs.version || '1.8.0' }}
+          name: BeatWave-PC-EXE-${{ inputs.version || '3.0.0' }}
           path: dist/*-setup.exe
           if-no-files-found: error
           retention-days: 14
@@ -134,7 +134,7 @@ jobs:
       - name: Upload MSI
         uses: actions/upload-artifact@v4
         with:
-          name: BeatWave-PC-MSI-${{ inputs.version || '1.8.0' }}
+          name: BeatWave-PC-MSI-${{ inputs.version || '3.0.0' }}
           path: dist/*.msi
           if-no-files-found: error
           retention-days: 14
@@ -142,7 +142,7 @@ jobs:
       - name: Upload portable ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: BeatWave-PC-Windows-Portable-${{ inputs.version || '1.8.0' }}
+          name: BeatWave-PC-Windows-Portable-${{ inputs.version || '3.0.0' }}
           path: dist/*-portable.zip
           if-no-files-found: error
           retention-days: 14
@@ -150,7 +150,7 @@ jobs:
       - name: Upload slim portable ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: BeatWave-PC-Windows-Slim-Portable-${{ inputs.version || '1.8.0' }}
+          name: BeatWave-PC-Windows-Slim-Portable-${{ inputs.version || '3.0.0' }}
           path: dist/*-portable-slim.zip
           if-no-files-found: warn
           retention-days: 14

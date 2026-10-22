@@ -2956,7 +2956,7 @@ fun NowPlayingScreen(
                             )
                         }
                     }
-                                        val morphEasing = remember { CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f) }
+                                        val morphEasing = remember { CubicBezierEasing(0.22f, 1.0f, 0.36f, 1.0f) }
                     var outgoingModel by remember { mutableStateOf<ImageRequest?>(null) }
                     var incomingModel by remember { mutableStateOf(art.request) }
                     val portraitMorphProgress = remember { Animatable(1f) }
@@ -2968,7 +2968,7 @@ fun NowPlayingScreen(
                             portraitMorphProgress.snapTo(0f)
                             portraitMorphProgress.animateTo(
                                 targetValue = 1f,
-                                animationSpec = tween(durationMillis = 3500, easing = morphEasing),
+                                animationSpec = tween(durationMillis = 650, easing = morphEasing),
                             )
                             outgoingModel = null
                         }
@@ -3245,12 +3245,12 @@ fun NowPlayingScreen(
                             targetState = song.title to song.artist,
                             transitionSpec = {
                                 val enter = slideInVertically(
-                                    animationSpec = tween(450, easing = CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)),
+                                    animationSpec = tween(450, easing = CubicBezierEasing(0.22f, 1.0f, 0.36f, 1.0f)),
                                     initialOffsetY = { 24 },
                                 ) + fadeIn(tween(400))
 
                                 val exit = slideOutVertically(
-                                    animationSpec = tween(350, easing = CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)),
+                                    animationSpec = tween(350, easing = CubicBezierEasing(0.22f, 1.0f, 0.36f, 1.0f)),
                                     targetOffsetY = { -24 },
                                 ) + fadeOut(tween(300))
 
