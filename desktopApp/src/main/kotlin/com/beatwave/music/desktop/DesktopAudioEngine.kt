@@ -115,7 +115,8 @@ class DesktopPlaybackEngine(
     // Volatile, every one of them: these are set from the UI thread when a setting changes and read
     // from the audio thread on the next block.
     @Volatile private var audioQuality = "HIGH"
-    @Volatile private var crossfadeSeconds = 0
+    @Volatile private var crossfadeSeconds = 4.0f
+    @Volatile private var manualCrossfadeEnabled = true
     @Volatile private var automixEnabled = false
     @Volatile private var nextSong: Song? = null
 
@@ -206,12 +207,12 @@ class DesktopPlaybackEngine(
     fun transitionTo(song: Song, playWhenReady: Boolean = true, fadeSeconds: Float? = null) {
         retryingSongId = null
         val currentPlaying = current
-        if (currentPlaying == null || paused || !sink.isOpen) {
+        if (currentPlaying == null || paused || !sink.isOpen || !manualCrossfadeEnabled) {
             load(song, playWhenReady)
             return
         }
 
-        val effectiveFade = fadeSeconds ?: if (crossfadeSeconds > 0) crossfadeSeconds.toFloat() else 2.5f
+        val effectiveFade = fadeSeconds ?: if (crossfadeSeconds > 0f) crossfadeSeconds else 4.0f
 
         val up = upcoming
         if (up != null && up.song.videoId == song.videoId) {
@@ -504,14 +505,22 @@ class DesktopPlaybackEngine(
     }
 
     fun setCrossfadeSeconds(seconds: Int) {
-        crossfadeSeconds = seconds.coerceIn(0, MAX_CROSSFADE_SECONDS)
-        if (crossfadeSeconds == 0 && !automixEnabled) clearUpcoming()
+        setCrossfadeSeconds(seconds.toFloat())
+    }
+
+    fun setCrossfadeSeconds(seconds: Float) {
+        crossfadeSeconds = seconds.coerceIn(0f, MAX_CROSSFADE_SECONDS.toFloat())
+        if (crossfadeSeconds <= 0f && !automixEnabled) clearUpcoming()
+    }
+
+    fun setManualCrossfadeEnabled(enabled: Boolean) {
+        manualCrossfadeEnabled = enabled
     }
 
     /** Enables Android's separate Automix setting. */
     fun setAutomixEnabled(enabled: Boolean) {
         automixEnabled = enabled
-        if (!enabled && crossfadeSeconds == 0) clearUpcoming()
+        if (!enabled && crossfadeSeconds <= 0f) clearUpcoming()
     }
 
     /** Resolves and prepares the next queue item without starting it. */
@@ -695,7 +704,7 @@ class DesktopPlaybackEngine(
 
     private fun transitionSecondsFor(next: Song?): Int = when {
         next == null -> 0
-        crossfadeSeconds > 0 -> crossfadeSeconds
+        crossfadeSeconds > 0f -> kotlin.math.round(crossfadeSeconds).toInt()
         automixEnabled -> AUTOMIX_FALLBACK_SECONDS
         else -> 0
     }
@@ -885,8 +894,8 @@ class DesktopPlaybackEngine(
             incomingFilter.advance()
 
             if (plan != null) DesktopTransitionRide.gains(plan, styleProgress, transitionGains)
-            val out = if (plan != null) transitionGains[0] else kotlin.math.sqrt(1f - styleProgress)
-            val into = if (plan != null) transitionGains[1] else kotlin.math.sqrt(styleProgress)
+            val out = if (plan != null) transitionGains[0] else kotlin.math.cos(styleProgress * 0.5 * Math.PI).toFloat()
+            val into = if (plan != null) transitionGains[1] else kotlin.math.sin(styleProgress * 0.5 * Math.PI).toFloat()
             // Equal-power gains sum past 1 — up to 1.41 at the midpoint — and two loud masters
             // peaking together would be clipped hard by the sink. A smooth trim of
             // 1 / sqrt(out + into) holds that to 1.19 for at most 1.5 dB, and reshapes nothing:
@@ -1283,13 +1292,20 @@ class DesktopPlaybackEngine(
             startTrack(track, playWhenReady)
             return
         }
+        // Fast-skip protection: If already mid-crossfade, cut previous fading deck cleanly
+        if (fadeRemaining > 0) {
+            val oldIncoming = upcoming
+            if (oldIncoming != null && oldIncoming !== track) {
+                oldIncoming.decoder.close()
+            }
+        }
         if (upcoming !== track) {
             upcoming?.decoder?.close()
             upcoming = track
         }
         val rate = sink.format.sampleRate
         val channels = sink.format.channels
-        val seconds = fadeSeconds.coerceIn(1.0f, 10.0f)
+        val seconds = fadeSeconds.coerceIn(1.0f, 12.0f)
         fadeTotal = (seconds * rate * channels).toInt().coerceAtLeast(1)
         transitionTotal = fadeTotal
         fadeRemaining = transitionTotal
@@ -1297,7 +1313,10 @@ class DesktopPlaybackEngine(
         transitionEcho = null
         outgoingFilter.open()
         incomingFilter.open()
-        displaySwitched = false
+        displaySwitched = true
+        // Immediately update OS Media Session (Windows SMTC / Linux MPRIS / taskbar)
+        publishTrack(track, isPlaying = !paused, positionUs = 0L)
+        onCrossfaded(track.song)
         DesktopTrackLog.log("manual crossfade into '${track.song.title}': ${seconds}s")
     }
 
@@ -1647,7 +1666,7 @@ class DesktopPlaybackEngine(
     ): TransitionPlan {
         val manualSeconds = crossfadeSeconds
         val smart = automixEnabled
-        if (!smart && manualSeconds <= 0) return TransitionPlan()
+        if (!smart && manualSeconds <= 0f) return TransitionPlan()
         return planTransition(
             analysis = analyzer.analysisFor(track.song.videoId),
             nextAnalysis = analyzer.analysisFor(next.videoId),
@@ -1655,7 +1674,7 @@ class DesktopPlaybackEngine(
             nextTrack = next.transitionInfo(nextDurationMs),
             currentTime = positionMs / 1_000.0,
             duration = durationMs / 1_000.0,
-            fadeSeconds = if (manualSeconds > 0) manualSeconds.toDouble() else AUTOMIX_FALLBACK_SECONDS.toDouble(),
+            fadeSeconds = if (manualSeconds > 0f) manualSeconds.toDouble() else AUTOMIX_FALLBACK_SECONDS.toDouble(),
             mode = if (smart) CrossfadeMode.SMART else CrossfadeMode.STANDARD,
             advanced = smart,
         )

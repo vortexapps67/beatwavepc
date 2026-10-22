@@ -6,6 +6,8 @@ import com.beatwave.music.ui.components.ShelfRowChrome
 import com.beatwave.music.ui.components.ShelfRow
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.pointer.isBackPressed
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerEventPass
@@ -661,7 +663,9 @@ fun BeatWaveDesktopApp() {
     }
     var playbackSpeed by remember { mutableStateOf(persistence.string("playback_speed", "1.0").toFloatOrNull() ?: 1.0f) }
     var volume by remember { mutableStateOf(persistence.string("volume", "1.0").toFloatOrNull()?.coerceIn(0.0f, 1.0f) ?: 1.0f) }
-    var crossfadeSeconds by remember { mutableStateOf(persistence.string("crossfade_seconds", "0").toIntOrNull()?.coerceIn(0, 12) ?: 0) }
+    var manualCrossfade by remember { mutableStateOf(persistence.boolean("manual_crossfade", true)) }
+    var crossfadeSeconds by remember { mutableStateOf(persistence.string("crossfade_seconds", "4.0").toFloatOrNull()?.coerceIn(0f, 12f) ?: 4.0f) }
+    var visualMorphQuality by remember { mutableStateOf(VisualMorphQuality.from(persistence.string("visual_morph_quality", "FLUID"))) }
     var downloadQuality by remember { mutableStateOf(persistence.string("download_quality", "LOSSLESS")) }
     var trayIconEnabled by remember { mutableStateOf(persistence.boolean("tray_icon", true)) }
     var closeToTray by remember { mutableStateOf(persistence.boolean("close_to_tray", true)) }
@@ -819,8 +823,8 @@ fun BeatWaveDesktopApp() {
         history = (listOf(song) + history.filterNot { it.videoId == song.videoId }).take(50)
         saveQueue()
         persistence.saveHistory(history)
-        if (crossfade && playbackEngine.state.value.isPlaying) {
-            playbackEngine.transitionTo(song, startPlaying)
+        if (crossfade && manualCrossfade && playbackEngine.state.value.isPlaying) {
+            playbackEngine.transitionTo(song, startPlaying, crossfadeSeconds)
         } else {
             playbackEngine.load(song, startPlaying)
         }
@@ -1643,9 +1647,10 @@ fun BeatWaveDesktopApp() {
     // the next song at a different moment and be dragged back by a correcting seek. The transition a
     // party shares is the plain one. The settings themselves are left alone and come back after.
     val inParty = partyState.inParty
-    LaunchedEffect(automix, crossfadeSeconds, inParty, audioQuality, selectedSong?.videoId, queue, liveQueue.index, shuffle, repeatMode) {
+    LaunchedEffect(automix, crossfadeSeconds, manualCrossfade, inParty, audioQuality, selectedSong?.videoId, queue, liveQueue.index, shuffle, repeatMode) {
         playbackEngine.setAutomixEnabled(automix && !inParty)
-        playbackEngine.setCrossfadeSeconds(if (inParty) 0 else crossfadeSeconds)
+        playbackEngine.setCrossfadeSeconds(if (inParty) 0f else crossfadeSeconds)
+        playbackEngine.setManualCrossfadeEnabled(manualCrossfade && !inParty)
         // Exactly what Next would play, so a crossfade can never blend into anything else. Shuffle
         // is already the queue's order; picking "the first track that is not this one" under it
         // blended into a song from history whenever the current one was not at the top.
@@ -2885,9 +2890,14 @@ fun BeatWaveDesktopApp() {
                 // Only Replay dresses itself; everywhere else the chrome sits on the plain surface.
                 backdrop = { transparentBase ->
                     DesktopPageBackdrop(
-                        artworkUrl = replaySummary.songs.firstOrNull()?.song?.thumbnailUrl
-                            .takeIf { overlays.replay },
+                        artworkUrl = if (overlays.replay) {
+                            replaySummary.songs.firstOrNull()?.song?.thumbnailUrl
+                        } else {
+                            selectedSong?.thumbnailUrl
+                        },
                         transparentBase = transparentBase,
+                        isPlaying = playback.isPlaying,
+                        durationMs = (crossfadeSeconds * 1000).toInt(),
                     )
                 },
                 modifier = Modifier.onPreviewKeyEvent { event ->
@@ -2905,7 +2915,14 @@ fun BeatWaveDesktopApp() {
                             playPrevious()
                             true
                         }
-                        Key.DirectionLeft -> if (event.isAltPressed && !overlays.nowPlaying) {
+                        Key.DirectionRight -> if (event.isCtrlPressed || event.isMetaPressed) {
+                            playNext()
+                            true
+                        } else false
+                        Key.DirectionLeft -> if (event.isCtrlPressed || event.isMetaPressed) {
+                            playPrevious()
+                            true
+                        } else if (event.isAltPressed && !overlays.nowPlaying) {
                             goBack()
                             true
                         } else {
@@ -2943,6 +2960,8 @@ fun BeatWaveDesktopApp() {
                         song = selectedSong,
                         isPlaying = playback.isPlaying,
                         isLoading = playback.isLoading,
+                        crossfadeDurationMs = (crossfadeSeconds * 1000).toInt(),
+                        morphQuality = visualMorphQuality,
                         previousEnabled = liveQueue.hasPrevious ||
                             playback.positionMs > BACK_RESTARTS_AFTER_MS,
                         progress = if (playback.durationMs > 0L) {
@@ -3434,10 +3453,20 @@ fun BeatWaveDesktopApp() {
                                         playbackSpeed = it
                                         persistence.saveString("playback_speed", it.toString())
                                     },
+                                    manualCrossfade = manualCrossfade,
+                                    onManualCrossfadeChange = {
+                                        manualCrossfade = it
+                                        persistence.saveBoolean("manual_crossfade", it)
+                                    },
                                     crossfadeSeconds = crossfadeSeconds,
                                     onCrossfadeSecondsChange = {
                                         crossfadeSeconds = it
                                         persistence.saveString("crossfade_seconds", it.toString())
+                                    },
+                                    visualMorphQuality = visualMorphQuality,
+                                    onVisualMorphQualityChange = {
+                                        visualMorphQuality = it
+                                        persistence.saveString("visual_morph_quality", it.name)
                                     },
                                     animatedCanvas = animatedCanvas,
                                     showNerdStats = showNerdStats,
@@ -3969,6 +3998,8 @@ private fun DesktopTopBar(
     song: Song?,
     isPlaying: Boolean,
     isLoading: Boolean,
+    crossfadeDurationMs: Int = 4000,
+    morphQuality: VisualMorphQuality = VisualMorphQuality.FLUID,
     previousEnabled: Boolean,
     progress: Float,
     volume: Float,
@@ -4000,6 +4031,14 @@ private fun DesktopTopBar(
     val reduceAnimation by DesktopPlayerSettings.reduceAnimation.collectAsState()
     val mixPulse = rememberMixPulse({ mixBlend.value }, enabled = !reduceAnimation)
     val currentProgress by rememberUpdatedState(progress)
+    val smoothProgress = remember { Animatable(progress) }
+    LaunchedEffect(progress) {
+        if (progress == 0f || progress < smoothProgress.value - 0.2f) {
+            smoothProgress.animateTo(progress, spring(dampingRatio = 0.75f, stiffness = 300f))
+        } else {
+            smoothProgress.snapTo(progress)
+        }
+    }
 
     // Apple Music uses one calm strip for both player controls and window furniture. The left
     // sidebar owns the traffic lights; the rest is a balanced transport / now-playing / utility
@@ -4140,28 +4179,33 @@ private fun DesktopTopBar(
                                     }
                                 } else {
                                     Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
-                                        DesktopArtwork(
+                                        DesktopMorphArtwork(
                                             song.thumbnailUrl,
-                                            Modifier.size(44.dp).clip(RoundedCornerShape(3.dp)),
+                                            Modifier.size(44.dp).clip(RoundedCornerShape(4.dp)),
                                             px = ROW_ART_PX,
+                                            durationMs = crossfadeDurationMs,
+                                            morphQuality = morphQuality,
                                         )
                                         Column(
                                             Modifier.weight(1f).padding(start = 12.dp, end = 56.dp),
                                             horizontalAlignment = Alignment.CenterHorizontally,
                                         ) {
-                                            Text(
+                                            DesktopMorphText(
                                                 song.title,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
                                                 style = MaterialTheme.typography.labelLarge,
                                                 fontWeight = FontWeight.SemiBold,
+                                                morphQuality = morphQuality,
                                             )
-                                            Text(
+                                            DesktopMorphText(
                                                 song.artist,
                                                 color = DesktopSecondary,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis,
                                                 style = MaterialTheme.typography.labelSmall,
+                                                staggerDelayMs = 60,
+                                                morphQuality = morphQuality,
                                             )
                                         }
                                     }
@@ -4176,7 +4220,7 @@ private fun DesktopTopBar(
                                             .fillMaxWidth()
                                             .height(2.dp)
                                             .drawBehind {
-                                                val base = currentProgress.coerceIn(0f, 1f)
+                                                val base = smoothProgress.value.coerceIn(0f, 1f)
                                                 val fraction = base + (1f - base) * mixPulse.cover
                                                 drawRect(
                                                     color = Color.White.copy(alpha = mixPulse.alpha(0.48f)),
@@ -4560,11 +4604,11 @@ private fun DesktopMiniPlayer(
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        DesktopArtwork(song.thumbnailUrl, Modifier.size(40.dp).clip(RoundedCornerShape(8.dp)), px = ROW_ART_PX)
+        DesktopMorphArtwork(song.thumbnailUrl, Modifier.size(40.dp).clip(RoundedCornerShape(8.dp)), px = ROW_ART_PX)
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
-            Text(song.title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold)
-            Text(song.artist, color = DesktopSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            DesktopMorphText(song.title, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.SemiBold)
+            DesktopMorphText(song.artist, color = DesktopSecondary, style = MaterialTheme.typography.bodySmall, maxLines = 1, overflow = TextOverflow.Ellipsis, staggerDelayMs = 60)
         }
         IconButton(onClick = onPlayPause) {
             Icon(if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (isPlaying) "Pause" else "Play", tint = Color.White)
@@ -4742,21 +4786,58 @@ private fun DesktopFrame(
  * ink so a page of text stays readable over it.
  */
 @Composable
-private fun DesktopPageBackdrop(artworkUrl: String?, transparentBase: Boolean) {
+private fun DesktopPageBackdrop(
+    artworkUrl: String?,
+    transparentBase: Boolean,
+    isPlaying: Boolean = true,
+    durationMs: Int = 4000,
+) {
+    val morphPalette = rememberDesktopMorphPalette(artworkUrl, durationMs = durationMs, isPlaying = isPlaying)
     Box(
         Modifier
             .fillMaxSize()
             .then(if (transparentBase) Modifier else Modifier.background(DesktopBackground)),
     ) {
         if (artworkUrl == null) return@Box
+        Box(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = morphPalette.breatheScale
+                    scaleY = morphPalette.breatheScale
+                }
+                .drawBehind {
+                    drawRect(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                morphPalette.primary.copy(alpha = 0.32f),
+                                morphPalette.secondary.copy(alpha = 0.16f),
+                                Color.Transparent,
+                            ),
+                            center = Offset(size.width * 0.25f, size.height * 0.3f),
+                            radius = size.maxDimension * 0.75f,
+                        )
+                    )
+                    drawRect(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                morphPalette.secondary.copy(alpha = 0.22f),
+                                Color.Transparent,
+                            ),
+                            center = Offset(size.width * 0.8f, size.height * 0.7f),
+                            radius = size.maxDimension * 0.65f,
+                        )
+                    )
+                }
+        )
         DesktopMesh(artworkUrl)
         Box(
             Modifier.fillMaxSize().background(
                 Brush.verticalGradient(
                     listOf(
-                        Color.Black.copy(alpha = 0.30f),
-                        Color.Black.copy(alpha = 0.72f),
-                        Color.Black.copy(alpha = 0.88f),
+                        Color.Black.copy(alpha = 0.25f),
+                        Color.Black.copy(alpha = 0.65f),
+                        Color.Black.copy(alpha = 0.85f),
                     ),
                 ),
             ),
@@ -5352,8 +5433,12 @@ private fun DesktopSettingsScreen(
     onRepeatModeChange: (DesktopRepeatMode) -> Unit,
     playbackSpeed: Float,
     onPlaybackSpeedChange: (Float) -> Unit,
-    crossfadeSeconds: Int,
-    onCrossfadeSecondsChange: (Int) -> Unit,
+    manualCrossfade: Boolean,
+    onManualCrossfadeChange: (Boolean) -> Unit,
+    crossfadeSeconds: Float,
+    onCrossfadeSecondsChange: (Float) -> Unit,
+    visualMorphQuality: VisualMorphQuality,
+    onVisualMorphQualityChange: (VisualMorphQuality) -> Unit,
     animatedCanvas: Boolean,
     onAnimatedCanvasChange: (Boolean) -> Unit,
     spotifyCanvasReady: Boolean,
@@ -5453,22 +5538,55 @@ private fun DesktopSettingsScreen(
             DesktopSettingsSection.entries.forEach { section ->
             if (section == DesktopSettingsSection.PLAYBACK) item {
                     SettingsGroup(DesktopStrings["playback", "Playback"]) {
-                    if (!automix) {
+                    SettingsToggle(
+                        "Manual Skip Crossfade",
+                        "Smoothly crossfade between tracks on manual skip, queue jump, or keyboard shortcut",
+                        manualCrossfade,
+                        onManualCrossfadeChange,
+                    )
+                    if (manualCrossfade || !automix) {
                         if (settingsRowVisible(DesktopStrings["crossfade", "Crossfade"])) {
                         Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
-                            Text(DesktopStrings["crossfade", "Crossfade"], style = MaterialTheme.typography.bodyLarge)
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(DesktopStrings["crossfade", "Crossfade duration"], style = MaterialTheme.typography.bodyLarge)
+                                Text(
+                                    "${"%.1f".format(crossfadeSeconds)}s",
+                                    color = DesktopAccent,
+                                    fontWeight = FontWeight.SemiBold,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
+                            DesktopBareSlider(
+                                value = crossfadeSeconds,
+                                onValueChange = {
+                                    val stepped = (kotlin.math.round(it * 2f) / 2f).coerceIn(1f, 12f)
+                                    onCrossfadeSecondsChange(stepped)
+                                },
+                                valueRange = 1f..12f,
+                                steps = 21,
+                            )
+                        }
+                        }
+                    }
+                    if (settingsRowVisible("Visual Morph Quality")) {
+                        Column(Modifier.fillMaxWidth().padding(vertical = 10.dp)) {
+                            Text("Visual Morph Quality", style = MaterialTheme.typography.bodyLarge)
                             Text(
-                                if (crossfadeSeconds == 0) "Off" else "${crossfadeSeconds}s",
+                                "Artwork 3D tilt, liquid-glass bloom, and typography roll during transitions",
                                 color = DesktopSecondary,
                                 style = MaterialTheme.typography.bodySmall,
                             )
-                            DesktopBareSlider(
-                                value = crossfadeSeconds.toFloat(),
-                                onValueChange = { onCrossfadeSecondsChange(it.toInt()) },
-                                valueRange = 0f..12f,
-                                steps = 11,
-                            )
-                        }
+                            Spacer(Modifier.height(8.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                VisualMorphQuality.entries.forEach { quality ->
+                                    FilterChip(
+                                        colors = desktopChipColors(),
+                                        selected = visualMorphQuality == quality,
+                                        onClick = { onVisualMorphQualityChange(quality) },
+                                        label = { Text(quality.label) },
+                                    )
+                                }
+                            }
                         }
                     }
                     SettingsToggle(
