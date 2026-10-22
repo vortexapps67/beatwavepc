@@ -4,7 +4,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.ScrollableState
-import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -56,15 +55,17 @@ internal fun Modifier.lenisSmoothScroll(
 
                         currentJob[0]?.cancel()
                         currentJob[0] = scope.launch {
-                            val anim = Animatable(0f)
-                            var lastValue = 0f
-                            anim.animateTo(
-                                targetValue = targetDelta,
-                                animationSpec = tween(durationMillis = durationMs, easing = lenisEasing),
-                            ) {
-                                val delta = value - lastValue
-                                lastValue = value
-                                state.scrollBy(delta)
+                            state.scroll {
+                                val anim = Animatable(0f)
+                                var lastValue = 0f
+                                anim.animateTo(
+                                    targetValue = targetDelta,
+                                    animationSpec = tween(durationMillis = durationMs, easing = lenisEasing),
+                                ) {
+                                    val delta = value - lastValue
+                                    lastValue = value
+                                    scrollBy(delta)
+                                }
                             }
                             scrollAccumulator[0] = 0f
                         }
