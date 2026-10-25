@@ -1848,6 +1848,14 @@ fun BeatWaveDesktopApp() {
                         val row = url.artworkAt(ROW_ART_PX) ?: url
                         DesktopArtworkCache.load(highRes)
                         DesktopArtworkCache.load(row)
+                        runCatching {
+                            coil3.SingletonImageLoader.get(platformContext).enqueue(
+                                coil3.request.ImageRequest.Builder(platformContext)
+                                    .data(highRes)
+                                    .size(PLAYER_ART_PX)
+                                    .build()
+                            )
+                        }
                     }
                 }
             }

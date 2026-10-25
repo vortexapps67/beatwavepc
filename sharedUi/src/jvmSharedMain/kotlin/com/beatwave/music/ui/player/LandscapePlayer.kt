@@ -4,6 +4,7 @@ import com.beatwave.music.sharedui.resources.*
 
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -335,21 +336,56 @@ internal fun LandscapeArtwork(
                 targetState = songId to artRequest,
                 transitionSpec = {
                     val morphEasing = CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)
-                    val enter = fadeIn(tween(850, easing = morphEasing)) +
-                        scaleIn(initialScale = 1.06f, animationSpec = tween(850, easing = morphEasing))
-                    val exit = fadeOut(tween(650, easing = morphEasing)) +
-                        scaleOut(targetScale = 0.94f, animationSpec = tween(650, easing = morphEasing))
+                    val enter = fadeIn(tween(950, easing = morphEasing))
+                    val exit = fadeOut(tween(800, easing = morphEasing))
                     enter togetherWith exit
                 },
                 modifier = Modifier.fillMaxSize(),
                 label = "landscapeArtworkFluidMorph",
-            ) { (_, request) ->
+            ) { (targetSongId, request) ->
+                val morphProgress by transition.animateFloat(
+                    transitionSpec = { tween(950, easing = CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)) },
+                    label = "landscapeFluidMorph",
+                ) { state ->
+                    if (state.first == targetSongId) 1f else 0f
+                }
+
+                val isEntering = (targetSongId == songId)
+                val t = if (isEntering) morphProgress.coerceIn(0f, 1f) else (1f - morphProgress).coerceIn(0f, 1f)
+                val scale = if (isEntering) 1.08f - (0.08f * t) else 1f - (0.08f * t)
+                val rotZ = if (isEntering) 3f * (1f - t) else -3f * t
+                val blurDp = if (isEntering) ((1f - t) * 6f).dp else (t * 8f).dp
+
                 AsyncImage(
                     model = request,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     onState = onArtState,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                            rotationZ = rotZ
+                        }
+                        .then(if (blurDp > 0.5.dp) Modifier.blur(blurDp) else Modifier)
+                        .drawWithContent {
+                            drawContent()
+                            if (isEntering && t in 0.05f..0.95f) {
+                                val sweepX = size.width * (t * 1.6f - 0.3f)
+                                drawRect(
+                                    brush = Brush.linearGradient(
+                                        colors = listOf(
+                                            Color.Transparent,
+                                            Color.White.copy(alpha = 0.28f * (1f - abs(t - 0.5f) * 2f)),
+                                            Color.Transparent,
+                                        ),
+                                        start = Offset(sweepX - 30f, 0f),
+                                        end = Offset(sweepX + 30f, size.height),
+                                    ),
+                                )
+                            }
+                        },
                 )
             }
 
