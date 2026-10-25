@@ -12,6 +12,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import kotlin.math.abs
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
@@ -300,53 +302,9 @@ internal fun LandscapeArtwork(
     /** How much of the sleeve's shadow is cast, 1 at rest. */
     shadowFraction: () -> Float = { 1f },
     songId: String? = null,
-    artworkUrl: String? = null,
     overlay: @Composable BoxScope.() -> Unit = {},
 ) {
-    val rawUrl = artworkUrl ?: artRequest.data?.toString()
-    val currentBitmap = rememberPlayerArtworkBitmap(rawUrl)
-    val morphEasing = remember { CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f) }
-
-    var outgoingBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
-    var incomingBitmap by remember { mutableStateOf<ImageBitmap?>(currentBitmap) }
-    var activeSongId by remember { mutableStateOf(songId) }
-    val morphProgress = remember { Animatable(1f) }
-
-    LaunchedEffect(songId, currentBitmap) {
-        if (songId != activeSongId) {
-            val prevBmp = incomingBitmap ?: currentBitmap
-            if (prevBmp != null) {
-                outgoingBitmap = prevBmp
-            }
-            activeSongId = songId
-            incomingBitmap = null
-
-            if (currentBitmap != null && currentBitmap !== prevBmp) {
-                incomingBitmap = currentBitmap
-                morphProgress.snapTo(0f)
-                morphProgress.animateTo(
-                    targetValue = 1f,
-                    animationSpec = tween(durationMillis = 1100, easing = morphEasing),
-                )
-                outgoingBitmap = null
-            }
-        } else if (incomingBitmap == null && currentBitmap != null) {
-            incomingBitmap = currentBitmap
-            if (outgoingBitmap != null && outgoingBitmap !== currentBitmap) {
-                morphProgress.snapTo(0f)
-                morphProgress.animateTo(
-                    targetValue = 1f,
-                    animationSpec = tween(durationMillis = 1100, easing = morphEasing),
-                )
-                outgoingBitmap = null
-            }
-        }
-    }
-
-    val t = morphProgress.value
-    val outBmp = outgoingBitmap
-    val inBmp = incomingBitmap ?: currentBitmap
-    val casts = inBmp != null || outBmp != null || artLoaded || canvasRendered
+    val casts = artLoaded || canvasRendered
 
     Box(modifier = modifier) {
         Box(
@@ -364,7 +322,7 @@ internal fun LandscapeArtwork(
                 .background(Color.Black.copy(alpha = 0.18f)),
             contentAlignment = Alignment.Center,
         ) {
-            if (inBmp == null && outBmp == null && !artLoaded && !canvasRendered) {
+            if (!artLoaded && !canvasRendered) {
                 Icon(
                     imageVector = BeatWaveIcons.MusicNote,
                     contentDescription = null,
@@ -373,81 +331,21 @@ internal fun LandscapeArtwork(
                 )
             }
 
-            // Dual-layer fluid morph when transition is in progress
-            if (outBmp != null && inBmp != null && t < 1f) {
-                val outScale = 1f - (0.08f * t)
-                val outRotZ = -3f * t
-                val outAlpha = (1f - t).coerceIn(0f, 1f)
-                val outBlur = (t * 8f).dp
-
-                Image(
-                    painter = BitmapPainter(outBmp),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            scaleX = outScale
-                            scaleY = outScale
-                            rotationZ = outRotZ
-                            alpha = outAlpha
-                        }
-                        .then(if (outBlur > 0.dp) Modifier.blur(outBlur) else Modifier),
-                )
-
-                val inScale = 1.08f - (0.08f * t)
-                val inRotZ = 3f * (1f - t)
-                val inAlpha = t.coerceIn(0f, 1f)
-                val inBlur = ((1f - t) * 6f).dp
-
-                Image(
-                    painter = BitmapPainter(inBmp),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            scaleX = inScale
-                            scaleY = inScale
-                            rotationZ = inRotZ
-                            alpha = inAlpha
-                        }
-                        .then(if (inBlur > 0.dp) Modifier.blur(inBlur) else Modifier)
-                        .drawWithContent {
-                            drawContent()
-                            if (t in 0.05f..0.95f) {
-                                val sweepX = size.width * (t * 1.6f - 0.3f)
-                                drawRect(
-                                    brush = Brush.linearGradient(
-                                        colors = listOf(
-                                            Color.Transparent,
-                                            Color.White.copy(alpha = 0.28f * (1f - abs(t - 0.5f) * 2f)),
-                                            Color.Transparent,
-                                        ),
-                                        start = Offset(sweepX - 30f, 0f),
-                                        end = Offset(sweepX + 30f, size.height),
-                                    ),
-                                )
-                            }
-                        },
-                )
-            } else if (outBmp != null && inBmp == null) {
-                Image(
-                    painter = BitmapPainter(outBmp),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else if (inBmp != null) {
-                Image(
-                    painter = BitmapPainter(inBmp),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
+            AnimatedContent(
+                targetState = songId to artRequest,
+                transitionSpec = {
+                    val morphEasing = CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)
+                    val enter = fadeIn(tween(850, easing = morphEasing)) +
+                        scaleIn(initialScale = 1.06f, animationSpec = tween(850, easing = morphEasing))
+                    val exit = fadeOut(tween(650, easing = morphEasing)) +
+                        scaleOut(targetScale = 0.94f, animationSpec = tween(650, easing = morphEasing))
+                    enter togetherWith exit
+                },
+                modifier = Modifier.fillMaxSize(),
+                label = "landscapeArtworkFluidMorph",
+            ) { (_, request) ->
                 AsyncImage(
-                    model = artRequest,
+                    model = request,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     onState = onArtState,

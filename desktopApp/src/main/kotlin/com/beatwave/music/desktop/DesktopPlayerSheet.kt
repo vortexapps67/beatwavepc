@@ -1,5 +1,8 @@
 package com.beatwave.music.desktop
 
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.Color
+
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -74,6 +77,7 @@ internal fun DesktopPlayerSheet(
         Box(
             Modifier
                 .fillMaxSize()
+                .background(Color(0xFF141416))
                 .graphicsLayer { translationY = offset.value }
                 .draggable(
                     state = dragState,

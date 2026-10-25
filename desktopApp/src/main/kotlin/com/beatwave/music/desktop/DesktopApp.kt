@@ -280,7 +280,6 @@ import coil3.request.ImageRequest
 import coil3.request.SuccessResult
 import com.beatwave.music.ui.graphics.toImageBitmap
 import com.beatwave.music.ui.graphics.forPixelAccess
-import com.beatwave.music.ui.player.PlayerArtworkMemoryCache
 import com.beatwave.music.data.model.PlaylistPrivacy
 import com.beatwave.music.data.model.ROW_ART_PX
 import com.beatwave.music.data.model.SearchFilter
@@ -1849,17 +1848,6 @@ fun BeatWaveDesktopApp() {
                         val row = url.artworkAt(ROW_ART_PX) ?: url
                         DesktopArtworkCache.load(highRes)
                         DesktopArtworkCache.load(row)
-                        val req = ImageRequest.Builder(platformContext)
-                            .data(highRes)
-                            .size(PLAYER_ART_PX)
-                            .forPixelAccess()
-                            .build()
-                        val res = runCatching { SingletonImageLoader.get(platformContext).execute(req) }.getOrNull()
-                        val bmp = (res as? SuccessResult)?.image?.toImageBitmap()
-                        if (bmp != null) {
-                            PlayerArtworkMemoryCache.put(highRes, bmp)
-                            PlayerArtworkMemoryCache.put(url, bmp)
-                        }
                     }
                 }
             }
@@ -1874,17 +1862,6 @@ fun BeatWaveDesktopApp() {
         withContext(Dispatchers.IO) {
             DesktopArtworkCache.load(highRes)
             DesktopArtworkCache.load(row)
-            val req = ImageRequest.Builder(platformContext)
-                .data(highRes)
-                .size(PLAYER_ART_PX)
-                .forPixelAccess()
-                .build()
-            val res = runCatching { SingletonImageLoader.get(platformContext).execute(req) }.getOrNull()
-            val bmp = (res as? SuccessResult)?.image?.toImageBitmap()
-            if (bmp != null) {
-                PlayerArtworkMemoryCache.put(highRes, bmp)
-                PlayerArtworkMemoryCache.put(url, bmp)
-            }
         }
     }
 
@@ -3315,8 +3292,7 @@ fun BeatWaveDesktopApp() {
                                     modifier = Modifier.size(19.dp),
                                 )
                             }
-                            Spacer(Modifier.width(8.dp))
-                            DesktopWindowButtons()
+                            
                         }
 
                         if (playerMenuOpen) {
