@@ -30,6 +30,7 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -2962,7 +2963,7 @@ fun NowPlayingScreen(
                         }
                     }
                                         AnimatedContent(
-                        targetState = song.videoId to art.request,
+                        targetState = FluidMorphArt(song.videoId, art.request),
                         transitionSpec = {
                             val morphEasing = CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)
                             val enter = fadeIn(tween(950, easing = morphEasing))
@@ -2971,22 +2972,22 @@ fun NowPlayingScreen(
                         },
                         modifier = Modifier.fillMaxSize(),
                         label = "portraitArtworkFluidMorph",
-                    ) { (targetSongId, request) ->
+                    ) { target ->
                         val morphProgress by transition.animateFloat(
                             transitionSpec = { tween(950, easing = CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)) },
                             label = "portraitFluidMorph",
-                        ) { state ->
-                            if (state.first == targetSongId) 1f else 0f
+                        ) { state: FluidMorphArt ->
+                            if (state.songId == target.songId) 1f else 0f
                         }
 
-                        val isEntering = (targetSongId == song.videoId)
+                        val isEntering = (target.songId == song.videoId)
                         val t = if (isEntering) morphProgress.coerceIn(0f, 1f) else (1f - morphProgress).coerceIn(0f, 1f)
                         val scale = if (isEntering) 1.08f - (0.08f * t) else 1f - (0.08f * t)
                         val rotZ = if (isEntering) 3f * (1f - t) else -3f * t
                         val blurDp = if (isEntering) ((1f - t) * 6f).dp else (t * 8f).dp
 
                         AsyncImage(
-                            model = request,
+                            model = target.request,
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             onState = art::onState,

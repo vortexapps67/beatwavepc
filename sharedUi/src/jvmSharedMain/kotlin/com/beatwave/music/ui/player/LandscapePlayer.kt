@@ -333,7 +333,7 @@ internal fun LandscapeArtwork(
             }
 
             AnimatedContent(
-                targetState = songId to artRequest,
+                targetState = FluidMorphArt(songId, artRequest),
                 transitionSpec = {
                     val morphEasing = CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)
                     val enter = fadeIn(tween(950, easing = morphEasing))
@@ -342,22 +342,22 @@ internal fun LandscapeArtwork(
                 },
                 modifier = Modifier.fillMaxSize(),
                 label = "landscapeArtworkFluidMorph",
-            ) { (targetSongId, request) ->
+            ) { target ->
                 val morphProgress by transition.animateFloat(
                     transitionSpec = { tween(950, easing = CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)) },
                     label = "landscapeFluidMorph",
-                ) { state ->
-                    if (state.first == targetSongId) 1f else 0f
+                ) { state: FluidMorphArt ->
+                    if (state.songId == target.songId) 1f else 0f
                 }
 
-                val isEntering = (targetSongId == songId)
+                val isEntering = (target.songId == songId)
                 val t = if (isEntering) morphProgress.coerceIn(0f, 1f) else (1f - morphProgress).coerceIn(0f, 1f)
                 val scale = if (isEntering) 1.08f - (0.08f * t) else 1f - (0.08f * t)
                 val rotZ = if (isEntering) 3f * (1f - t) else -3f * t
                 val blurDp = if (isEntering) ((1f - t) * 6f).dp else (t * 8f).dp
 
                 AsyncImage(
-                    model = request,
+                    model = target.request,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     onState = onArtState,

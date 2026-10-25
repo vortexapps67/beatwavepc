@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -198,6 +199,12 @@ internal fun rememberPlayerArtwork(remoteArt: String?): PlayerArtwork {
  * dropped until the player's position catches up with it.
  */
 @Stable
+
+@Immutable
+data class FluidMorphArt(
+    val songId: String?,
+    val request: ImageRequest,
+)
 
 internal class PlayerScrub {
     var scrubbing by mutableStateOf(false)
