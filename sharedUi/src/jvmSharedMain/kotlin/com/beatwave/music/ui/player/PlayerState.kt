@@ -24,6 +24,15 @@ import coil3.compose.LocalPlatformContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImagePainter
 import coil3.request.ImageRequest
+import coil3.SingletonImageLoader
+import coil3.request.SuccessResult
+import com.beatwave.music.ui.graphics.toImageBitmap
+import com.beatwave.music.ui.graphics.forPixelAccess
+import com.beatwave.music.data.model.PLAYER_ART_PX
+import com.beatwave.music.data.model.ROW_ART_PX
+import androidx.compose.ui.graphics.ImageBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.beatwave.music.data.canvas.CanvasArtwork
 import com.beatwave.music.data.model.Song
 import com.beatwave.music.data.model.artworkAt
@@ -189,6 +198,97 @@ internal fun rememberPlayerArtwork(remoteArt: String?): PlayerArtwork {
  * dropped until the player's position catches up with it.
  */
 @Stable
+
+object PlayerArtworkMemoryCache {
+    private val cache = object : LinkedHashMap<String, ImageBitmap>(32, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ImageBitmap>?): Boolean {
+            return size > 40
+        }
+    }
+
+    @Synchronized
+    fun get(url: String?): ImageBitmap? {
+        if (url.isNullOrBlank()) return null
+        return cache[url]
+    }
+
+    @Synchronized
+    fun put(url: String?, bitmap: ImageBitmap) {
+        if (url.isNullOrBlank()) return
+        cache[url] = bitmap
+    }
+
+    @Synchronized
+    fun clear() {
+        cache.clear()
+    }
+}
+
+@Composable
+fun rememberPlayerArtworkBitmap(remoteArt: String?): ImageBitmap? {
+    val context = LocalPlatformContext.current
+    var bitmap by remember(remoteArt) {
+        mutableStateOf(
+            remoteArt?.let { url ->
+                val sized = url.artworkAt(PLAYER_ART_PX) ?: url
+                PlayerArtworkMemoryCache.get(sized) ?: PlayerArtworkMemoryCache.get(url)
+            }
+        )
+    }
+
+    LaunchedEffect(remoteArt) {
+        if (remoteArt.isNullOrBlank()) {
+            bitmap = null
+            return@LaunchedEffect
+        }
+        val targetUrl = remoteArt.artworkAt(PLAYER_ART_PX) ?: remoteArt
+        val existing = PlayerArtworkMemoryCache.get(targetUrl) ?: PlayerArtworkMemoryCache.get(remoteArt)
+        if (existing != null) {
+            bitmap = existing
+            return@LaunchedEffect
+        }
+
+        // Fast bridge: check if thumbnail (row/card px) is already in cache
+        val thumbUrl = remoteArt.artworkAt(ROW_ART_PX) ?: remoteArt
+        val cachedThumb = PlayerArtworkMemoryCache.get(thumbUrl) ?: PlayerArtworkMemoryCache.get(remoteArt)
+        if (cachedThumb != null && bitmap == null) {
+            bitmap = cachedThumb
+        }
+
+        // Load full 1200px artwork
+        val request = ImageRequest.Builder(context)
+            .data(targetUrl)
+            .size(PLAYER_ART_PX)
+            .forPixelAccess()
+            .build()
+        val result = withContext(Dispatchers.IO) {
+            runCatching { SingletonImageLoader.get(context).execute(request) }.getOrNull()
+        }
+        val loaded = (result as? SuccessResult)?.image?.toImageBitmap()
+        if (loaded != null) {
+            PlayerArtworkMemoryCache.put(targetUrl, loaded)
+            PlayerArtworkMemoryCache.put(remoteArt, loaded)
+            bitmap = loaded
+        } else if (bitmap == null) {
+            val fallbackReq = ImageRequest.Builder(context)
+                .data(thumbUrl)
+                .size(ROW_ART_PX)
+                .forPixelAccess()
+                .build()
+            val fallbackRes = withContext(Dispatchers.IO) {
+                runCatching { SingletonImageLoader.get(context).execute(fallbackReq) }.getOrNull()
+            }
+            val fallbackLoaded = (fallbackRes as? SuccessResult)?.image?.toImageBitmap()
+            if (fallbackLoaded != null) {
+                PlayerArtworkMemoryCache.put(thumbUrl, fallbackLoaded)
+                bitmap = fallbackLoaded
+            }
+        }
+    }
+
+    return bitmap
+}
+
 internal class PlayerScrub {
     var scrubbing by mutableStateOf(false)
         private set

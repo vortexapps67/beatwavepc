@@ -32,6 +32,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -1793,6 +1795,7 @@ fun NowPlayingScreen(
                         // cover sits flat in its bar.
                         shadowFraction = dockT,
                         songId = song.videoId,
+                        artworkUrl = remoteArt,
                         modifier = artworkModifier
                             .then(
                                 if (dock != null) {
@@ -2958,35 +2961,54 @@ fun NowPlayingScreen(
                         }
                     }
                                         val morphEasing = remember { CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f) }
-                    var outgoingModel by remember { mutableStateOf<ImageRequest?>(null) }
-                    var incomingModel by remember { mutableStateOf(art.request) }
+                    val currentPortraitBitmap = rememberPlayerArtworkBitmap(remoteArt)
+                    var outgoingPortraitBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
+                    var incomingPortraitBitmap by remember { mutableStateOf<ImageBitmap?>(currentPortraitBitmap) }
                     var lastPortraitSongId by remember { mutableStateOf(song.videoId) }
                     val portraitMorphProgress = remember { Animatable(1f) }
 
-                    LaunchedEffect(art.request.data, song.videoId) {
-                        if (art.request.data != incomingModel.data || song.videoId != lastPortraitSongId) {
-                            outgoingModel = incomingModel
-                            incomingModel = art.request
+                    LaunchedEffect(song.videoId, currentPortraitBitmap) {
+                        if (song.videoId != lastPortraitSongId) {
+                            val prevBmp = incomingPortraitBitmap ?: currentPortraitBitmap
+                            if (prevBmp != null) {
+                                outgoingPortraitBitmap = prevBmp
+                            }
                             lastPortraitSongId = song.videoId
-                            portraitMorphProgress.snapTo(0f)
-                            portraitMorphProgress.animateTo(
-                                targetValue = 1f,
-                                animationSpec = tween(durationMillis = 1100, easing = morphEasing),
-                            )
-                            outgoingModel = null
+                            incomingPortraitBitmap = null
+
+                            if (currentPortraitBitmap != null && currentPortraitBitmap !== prevBmp) {
+                                incomingPortraitBitmap = currentPortraitBitmap
+                                portraitMorphProgress.snapTo(0f)
+                                portraitMorphProgress.animateTo(
+                                    targetValue = 1f,
+                                    animationSpec = tween(durationMillis = 1100, easing = morphEasing),
+                                )
+                                outgoingPortraitBitmap = null
+                            }
+                        } else if (incomingPortraitBitmap == null && currentPortraitBitmap != null) {
+                            incomingPortraitBitmap = currentPortraitBitmap
+                            if (outgoingPortraitBitmap != null && outgoingPortraitBitmap !== currentPortraitBitmap) {
+                                portraitMorphProgress.snapTo(0f)
+                                portraitMorphProgress.animateTo(
+                                    targetValue = 1f,
+                                    animationSpec = tween(durationMillis = 1100, easing = morphEasing),
+                                )
+                                outgoingPortraitBitmap = null
+                            }
                         }
                     }
 
                     val portT = portraitMorphProgress.value
+                    val portOutBmp = outgoingPortraitBitmap
+                    val portInBmp = incomingPortraitBitmap ?: currentPortraitBitmap
 
-                    val outModel = outgoingModel
-                    if (outModel != null && portT < 1f) {
+                    if (portOutBmp != null && portInBmp != null && portT < 1f) {
                         val outScale = 1f - (0.08f * portT)
                         val outRotZ = -3f * portT
                         val outAlpha = (1f - portT).coerceIn(0f, 1f)
                         val outBlur = (portT * 8f).dp
-                        AsyncImage(
-                            model = outModel,
+                        Image(
+                            painter = BitmapPainter(portOutBmp),
                             contentDescription = null,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
@@ -2999,45 +3021,65 @@ fun NowPlayingScreen(
                                 }
                                 .then(if (outBlur > 0.dp) Modifier.blur(outBlur) else Modifier),
                         )
-                    }
 
-                    val inScale = if (outgoingModel != null || portT < 1f) 1.08f - (0.08f * portT) else 1f
-                    val inRotZ = if (outgoingModel != null || portT < 1f) 3f * (1f - portT) else 0f
-                    val inAlpha = if (outgoingModel != null || portT < 1f) portT.coerceIn(0f, 1f) else 1f
-                    val inBlur = if (outgoingModel != null || portT < 1f) ((1f - portT) * 6f).dp else 0.dp
-
-                    AsyncImage(
-                        model = incomingModel,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        onState = art::onState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                scaleX = inScale
-                                scaleY = inScale
-                                rotationZ = inRotZ
-                                alpha = inAlpha
-                            }
-                            .then(if (inBlur > 0.dp) Modifier.blur(inBlur) else Modifier)
-                            .drawWithContent {
-                                if (art.loaded || !canvasRendered) drawContent()
-                                if (portT in 0.05f..0.95f) {
-                                    val sweepX = size.width * (portT * 1.6f - 0.3f)
-                                    drawRect(
-                                        brush = Brush.linearGradient(
-                                            colors = listOf(
-                                                Color.Transparent,
-                                                Color.White.copy(alpha = 0.28f * (1f - abs(portT - 0.5f) * 2f)),
-                                                Color.Transparent,
-                                            ),
-                                            start = Offset(sweepX - 30f, 0f),
-                                            end = Offset(sweepX + 30f, size.height),
-                                        ),
-                                    )
+                        val inScale = 1.08f - (0.08f * portT)
+                        val inRotZ = 3f * (1f - portT)
+                        val inAlpha = portT.coerceIn(0f, 1f)
+                        val inBlur = ((1f - portT) * 6f).dp
+                        Image(
+                            painter = BitmapPainter(portInBmp),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    scaleX = inScale
+                                    scaleY = inScale
+                                    rotationZ = inRotZ
+                                    alpha = inAlpha
                                 }
-                            },
-                    )
+                                .then(if (inBlur > 0.dp) Modifier.blur(inBlur) else Modifier)
+                                .drawWithContent {
+                                    if (art.loaded || !canvasRendered) drawContent()
+                                    if (portT in 0.05f..0.95f) {
+                                        val sweepX = size.width * (portT * 1.6f - 0.3f)
+                                        drawRect(
+                                            brush = Brush.linearGradient(
+                                                colors = listOf(
+                                                    Color.Transparent,
+                                                    Color.White.copy(alpha = 0.28f * (1f - abs(portT - 0.5f) * 2f)),
+                                                    Color.Transparent,
+                                                ),
+                                                start = Offset(sweepX - 30f, 0f),
+                                                end = Offset(sweepX + 30f, size.height),
+                                            ),
+                                        )
+                                    }
+                                },
+                        )
+                    } else if (portOutBmp != null && portInBmp == null) {
+                        Image(
+                            painter = BitmapPainter(portOutBmp),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else if (portInBmp != null) {
+                        Image(
+                            painter = BitmapPainter(portInBmp),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        AsyncImage(
+                            model = art.request,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            onState = art::onState,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
 
                     // Where the clip plays when it can't have the banner:
                     // inside the same clip as the still art, taking the

@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import com.beatwave.music.data.model.artworkAt
+import com.beatwave.music.data.model.ROW_ART_PX
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.abs
@@ -61,76 +62,73 @@ fun DesktopMorphArtwork(
     durationMs: Int = 4000,
     morphQuality: VisualMorphQuality = VisualMorphQuality.FLUID,
 ) {
-    var outgoingUrl by remember { mutableStateOf<String?>(null) }
-    var incomingUrl by remember { mutableStateOf(url) }
+    val sizedUrl = if (px != null) url?.artworkAt(px) ?: url else url
+    var outgoingBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
+    var incomingBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
     val progress = remember { Animatable(1f) }
 
-    LaunchedEffect(url) {
-        if (url != incomingUrl) {
-            outgoingUrl = incomingUrl
-            incomingUrl = url
-            progress.snapTo(0f)
-            progress.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(
-                    durationMillis = if (morphQuality == VisualMorphQuality.REDUCED) 300 else durationMs.coerceIn(1000, 12000),
-                    easing = MorphEasing,
-                ),
-            )
-            outgoingUrl = null
+    LaunchedEffect(sizedUrl) {
+        if (sizedUrl.isNullOrBlank()) {
+            incomingBitmap = null
+            outgoingBitmap = null
+            return@LaunchedEffect
+        }
+        val loaded = withContext(Dispatchers.IO) {
+            DesktopArtworkCache.load(sizedUrl)
+                ?: (if (px != null && px != ROW_ART_PX) DesktopArtworkCache.load(url?.artworkAt(ROW_ART_PX) ?: url) else null)
+        }
+        if (loaded != null) {
+            if (incomingBitmap != null && incomingBitmap !== loaded) {
+                outgoingBitmap = incomingBitmap
+                incomingBitmap = loaded
+                progress.snapTo(0f)
+                progress.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(
+                        durationMillis = if (morphQuality == VisualMorphQuality.REDUCED) 300 else durationMs.coerceIn(800, 12000),
+                        easing = MorphEasing,
+                    ),
+                )
+                outgoingBitmap = null
+            } else {
+                incomingBitmap = loaded
+            }
         }
     }
 
     val currentProgress = progress.value
+    val outBmp = outgoingBitmap
+    val inBmp = incomingBitmap
 
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
-        // 1. Outgoing artwork layer
-        val outUrl = outgoingUrl
-        if (outUrl != null && currentProgress < 1f) {
-            val outSized = if (px != null) outUrl.artworkAt(px) else outUrl
-            val outBitmap by produceState<ImageBitmap?>(initialValue = null, key1 = outSized) {
-                value = withContext(Dispatchers.IO) { DesktopArtworkCache.load(outSized) }
-            }
-            if (outBitmap != null) {
-                val outAlpha = (1f - currentProgress).coerceIn(0f, 1f)
-                val outScale = if (morphQuality == VisualMorphQuality.FLUID) 1f - (0.08f * currentProgress) else 1f
-                val outRotZ = if (morphQuality == VisualMorphQuality.FLUID) -3f * currentProgress else 0f
-                val outBlur = if (morphQuality == VisualMorphQuality.FLUID) (currentProgress * 8f).dp else 0.dp
+        if (outBmp != null && inBmp != null && currentProgress < 1f) {
+            val outAlpha = (1f - currentProgress).coerceIn(0f, 1f)
+            val outScale = if (morphQuality == VisualMorphQuality.FLUID) 1f - (0.08f * currentProgress) else 1f
+            val outRotZ = if (morphQuality == VisualMorphQuality.FLUID) -3f * currentProgress else 0f
+            val outBlur = if (morphQuality == VisualMorphQuality.FLUID) (currentProgress * 8f).dp else 0.dp
 
-                Image(
-                    painter = BitmapPainter(outBitmap!!),
-                    contentDescription = null,
-                    contentScale = contentScale,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            scaleX = outScale
-                            scaleY = outScale
-                            rotationZ = outRotZ
-                            alpha = outAlpha
-                        }
-                        .then(if (outBlur > 0.dp) Modifier.blur(outBlur) else Modifier),
-                )
-            }
-        }
+            Image(
+                painter = BitmapPainter(outBmp),
+                contentDescription = null,
+                contentScale = contentScale,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = outScale
+                        scaleY = outScale
+                        rotationZ = outRotZ
+                        alpha = outAlpha
+                    }
+                    .then(if (outBlur > 0.dp) Modifier.blur(outBlur) else Modifier),
+            )
 
-        // 2. Incoming artwork layer
-        val inUrl = incomingUrl
-        val inSized = if (px != null) inUrl.artworkAt(px) else inUrl
-        val inBitmap by produceState<ImageBitmap?>(initialValue = null, key1 = inSized) {
-            value = withContext(Dispatchers.IO) { DesktopArtworkCache.load(inSized) }
-        }
-
-        if (inBitmap == null) {
-            Box(Modifier.fillMaxSize().background(Color(0xFF2B2B35)))
-        } else {
             val inAlpha = currentProgress.coerceIn(0f, 1f)
             val inScale = if (morphQuality == VisualMorphQuality.FLUID) 1.08f - (0.08f * currentProgress) else 1f
             val inRotZ = if (morphQuality == VisualMorphQuality.FLUID) 3f * (1f - currentProgress) else 0f
             val inBlur = if (morphQuality == VisualMorphQuality.FLUID) ((1f - currentProgress) * 6f).dp else 0.dp
 
             Image(
-                painter = BitmapPainter(inBitmap!!),
+                painter = BitmapPainter(inBmp),
                 contentDescription = contentDescription,
                 contentScale = contentScale,
                 modifier = Modifier
@@ -144,10 +142,8 @@ fun DesktopMorphArtwork(
                     .then(if (inBlur > 0.dp) Modifier.blur(inBlur) else Modifier)
                     .drawWithContent {
                         drawContent()
-                        // Liquid glass specular refractive bloom highlight during transition
                         if (morphQuality == VisualMorphQuality.FLUID && currentProgress in 0.05f..0.95f) {
-                            val shineProgress = currentProgress
-                            val sweepX = size.width * (shineProgress * 1.6f - 0.3f)
+                            val sweepX = size.width * (currentProgress * 1.6f - 0.3f)
                             drawRect(
                                 brush = Brush.linearGradient(
                                     colors = listOf(
@@ -162,6 +158,22 @@ fun DesktopMorphArtwork(
                         }
                     },
             )
+        } else if (outBmp != null && inBmp == null) {
+            Image(
+                painter = BitmapPainter(outBmp),
+                contentDescription = null,
+                contentScale = contentScale,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else if (inBmp != null) {
+            Image(
+                painter = BitmapPainter(inBmp),
+                contentDescription = contentDescription,
+                contentScale = contentScale,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Box(Modifier.fillMaxSize().background(Color(0xFF2B2B35)))
         }
     }
 }

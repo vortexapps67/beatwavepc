@@ -275,6 +275,12 @@ import com.beatwave.music.data.model.LikeStatus
 import com.beatwave.music.data.model.MoodGenre
 import com.beatwave.music.data.model.MoodGenreSection
 import com.beatwave.music.data.model.PLAYER_ART_PX
+import coil3.SingletonImageLoader
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import com.beatwave.music.ui.graphics.toImageBitmap
+import com.beatwave.music.ui.graphics.forPixelAccess
+import com.beatwave.music.ui.player.PlayerArtworkMemoryCache
 import com.beatwave.music.data.model.PlaylistPrivacy
 import com.beatwave.music.data.model.ROW_ART_PX
 import com.beatwave.music.data.model.SearchFilter
@@ -1829,11 +1835,56 @@ fun BeatWaveDesktopApp() {
         lyricsLoading = false
     }
 
+    val platformContext = coil3.compose.LocalPlatformContext.current
     LaunchedEffect(liveQueue.index, liveQueue.songs.size) {
         val ahead = liveQueue.upcoming.take(4)
         if (ahead.isNotEmpty()) {
             DesktopLyricsClient.prefetch(ahead)
             DesktopAudioCache.prefetch(ahead)
+            withContext(Dispatchers.IO) {
+                ahead.forEach { s ->
+                    launch {
+                        val url = s.thumbnailUrl ?: return@launch
+                        val highRes = url.artworkAt(PLAYER_ART_PX) ?: url
+                        val row = url.artworkAt(ROW_ART_PX) ?: url
+                        DesktopArtworkCache.load(highRes)
+                        DesktopArtworkCache.load(row)
+                        val req = ImageRequest.Builder(platformContext)
+                            .data(highRes)
+                            .size(PLAYER_ART_PX)
+                            .forPixelAccess()
+                            .build()
+                        val res = runCatching { SingletonImageLoader.get(platformContext).execute(req) }.getOrNull()
+                        val bmp = (res as? SuccessResult)?.image?.toImageBitmap()
+                        if (bmp != null) {
+                            PlayerArtworkMemoryCache.put(highRes, bmp)
+                            PlayerArtworkMemoryCache.put(url, bmp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(selectedSong?.videoId) {
+        val song = selectedSong ?: return@LaunchedEffect
+        val url = song.thumbnailUrl ?: return@LaunchedEffect
+        val highRes = url.artworkAt(PLAYER_ART_PX) ?: url
+        val row = url.artworkAt(ROW_ART_PX) ?: url
+        withContext(Dispatchers.IO) {
+            DesktopArtworkCache.load(highRes)
+            DesktopArtworkCache.load(row)
+            val req = ImageRequest.Builder(platformContext)
+                .data(highRes)
+                .size(PLAYER_ART_PX)
+                .forPixelAccess()
+                .build()
+            val res = runCatching { SingletonImageLoader.get(platformContext).execute(req) }.getOrNull()
+            val bmp = (res as? SuccessResult)?.image?.toImageBitmap()
+            if (bmp != null) {
+                PlayerArtworkMemoryCache.put(highRes, bmp)
+                PlayerArtworkMemoryCache.put(url, bmp)
+            }
         }
     }
 
