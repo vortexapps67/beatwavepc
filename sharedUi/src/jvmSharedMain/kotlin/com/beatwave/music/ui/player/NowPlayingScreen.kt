@@ -1792,6 +1792,7 @@ fun NowPlayingScreen(
                         // Let go of on the way to the mini player, whose
                         // cover sits flat in its bar.
                         shadowFraction = dockT,
+                        songId = song.videoId,
                         modifier = artworkModifier
                             .then(
                                 if (dock != null) {
@@ -2956,19 +2957,21 @@ fun NowPlayingScreen(
                             )
                         }
                     }
-                                        val morphEasing = remember { CubicBezierEasing(0.22f, 1.0f, 0.36f, 1.0f) }
+                                        val morphEasing = remember { CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f) }
                     var outgoingModel by remember { mutableStateOf<ImageRequest?>(null) }
                     var incomingModel by remember { mutableStateOf(art.request) }
+                    var lastPortraitSongId by remember { mutableStateOf(song.videoId) }
                     val portraitMorphProgress = remember { Animatable(1f) }
 
-                    LaunchedEffect(art.request.data) {
-                        if (art.request.data != incomingModel.data) {
+                    LaunchedEffect(art.request.data, song.videoId) {
+                        if (art.request.data != incomingModel.data || song.videoId != lastPortraitSongId) {
                             outgoingModel = incomingModel
                             incomingModel = art.request
+                            lastPortraitSongId = song.videoId
                             portraitMorphProgress.snapTo(0f)
                             portraitMorphProgress.animateTo(
                                 targetValue = 1f,
-                                animationSpec = tween(durationMillis = 650, easing = morphEasing),
+                                animationSpec = tween(durationMillis = 1100, easing = morphEasing),
                             )
                             outgoingModel = null
                         }

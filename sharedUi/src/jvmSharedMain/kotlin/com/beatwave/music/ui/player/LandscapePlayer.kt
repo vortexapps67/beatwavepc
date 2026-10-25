@@ -295,22 +295,25 @@ internal fun LandscapeArtwork(
     sleeveShape: () -> Shape = { LandscapeArtShape },
     /** How much of the sleeve's shadow is cast, 1 at rest. */
     shadowFraction: () -> Float = { 1f },
+    songId: String? = null,
     overlay: @Composable BoxScope.() -> Unit = {},
 ) {
     val casts = artLoaded || canvasRendered
-    val morphEasing = remember { CubicBezierEasing(0.22f, 1.0f, 0.36f, 1.0f) }
+    val morphEasing = remember { CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f) }
     var outgoingRequest by remember { mutableStateOf<ImageRequest?>(null) }
     var incomingRequest by remember { mutableStateOf(artRequest) }
+    var lastSongId by remember { mutableStateOf(songId) }
     val morphProgress = remember { Animatable(1f) }
 
-    androidx.compose.runtime.LaunchedEffect(artRequest.data) {
-        if (artRequest.data != incomingRequest.data) {
+    androidx.compose.runtime.LaunchedEffect(artRequest.data, songId) {
+        if (artRequest.data != incomingRequest.data || (songId != null && songId != lastSongId)) {
             outgoingRequest = incomingRequest
             incomingRequest = artRequest
+            lastSongId = songId
             morphProgress.snapTo(0f)
             morphProgress.animateTo(
                 targetValue = 1f,
-                animationSpec = tween(durationMillis = 650, easing = morphEasing),
+                animationSpec = tween(durationMillis = 1100, easing = morphEasing),
             )
             outgoingRequest = null
         }
@@ -496,15 +499,16 @@ internal fun LandscapeCredits(
         AnimatedContent(
             targetState = song.title to song.artist,
             transitionSpec = {
+                val morphEasing = CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)
                 val enter = slideInVertically(
-                    animationSpec = tween(450, easing = CubicBezierEasing(0.22f, 1.0f, 0.36f, 1.0f)),
-                    initialOffsetY = { 24 },
-                ) + fadeIn(tween(400))
+                    animationSpec = tween(500, delayMillis = 60, easing = morphEasing),
+                    initialOffsetY = { 28 },
+                ) + fadeIn(tween(450, delayMillis = 60))
 
                 val exit = slideOutVertically(
-                    animationSpec = tween(350, easing = CubicBezierEasing(0.22f, 1.0f, 0.36f, 1.0f)),
-                    targetOffsetY = { -24 },
-                ) + fadeOut(tween(300))
+                    animationSpec = tween(380, easing = morphEasing),
+                    targetOffsetY = { -28 },
+                ) + fadeOut(tween(320))
 
                 enter togetherWith exit
             },

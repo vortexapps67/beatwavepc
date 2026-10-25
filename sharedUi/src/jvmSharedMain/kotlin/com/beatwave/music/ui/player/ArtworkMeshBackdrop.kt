@@ -141,19 +141,55 @@ fun FullArtworkBlurBackdrop(
     image: ImageBitmap?,
     modifier: Modifier = Modifier,
 ) {
-    val imageAlpha by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (image != null) 1f else 0f,
-        animationSpec = tween(320, easing = FastOutSlowInEasing),
-        label = "preparedBackdropImage",
-    )
+    var outgoingImage by remember { mutableStateOf<ImageBitmap?>(null) }
+    var incomingImage by remember { mutableStateOf(image) }
+    val morphProgress = remember { Animatable(1f) }
+
+    LaunchedEffect(image) {
+        if (image != null && image !== incomingImage) {
+            outgoingImage = incomingImage
+            incomingImage = image
+            morphProgress.snapTo(0f)
+            morphProgress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(1000, easing = androidx.compose.animation.core.CubicBezierEasing(0.16f, 1.0f, 0.3f, 1.0f)),
+            )
+            outgoingImage = null
+        } else if (image == null) {
+            incomingImage = null
+        }
+    }
+
+    val t = morphProgress.value
+
     Box(modifier = modifier.fillMaxSize().background(FallbackBackdrop)) {
-        image?.let { bitmap ->
-            val painter = remember(bitmap) { BitmapPainter(bitmap) }
+        val outBmp = outgoingImage
+        if (outBmp != null && t < 1f) {
+            val outPainter = remember(outBmp) { BitmapPainter(outBmp) }
             Image(
-                painter = painter,
+                painter = outPainter,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize().graphicsLayer { alpha = imageAlpha },
+                modifier = Modifier.fillMaxSize().graphicsLayer {
+                    alpha = (1f - t).coerceIn(0f, 1f)
+                    scaleX = 1f + 0.04f * t
+                    scaleY = 1f + 0.04f * t
+                },
+            )
+        }
+
+        val inBmp = incomingImage ?: image
+        if (inBmp != null) {
+            val inPainter = remember(inBmp) { BitmapPainter(inBmp) }
+            Image(
+                painter = inPainter,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize().graphicsLayer {
+                    alpha = if (outgoingImage != null) t.coerceIn(0f, 1f) else 1f
+                    scaleX = if (outgoingImage != null) 1.04f - 0.04f * t else 1f
+                    scaleY = if (outgoingImage != null) 1.04f - 0.04f * t else 1f
+                },
             )
         }
 
