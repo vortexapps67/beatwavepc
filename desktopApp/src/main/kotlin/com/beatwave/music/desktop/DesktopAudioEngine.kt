@@ -119,6 +119,7 @@ class DesktopPlaybackEngine(
     @Volatile private var manualCrossfadeEnabled = true
     @Volatile private var automixEnabled = false
     @Volatile private var nextSong: Song? = null
+    @Volatile private var pendingTransitionSongId: String? = null
 
     /** [nextSong]'s downloaded file, when it has one, for its analysis. */
     @Volatile private var nextLocalStream: DesktopStream? = null
@@ -206,6 +207,9 @@ class DesktopPlaybackEngine(
      */
     fun transitionTo(song: Song, playWhenReady: Boolean = true, fadeSeconds: Float? = null) {
         retryingSongId = null
+        pendingTransitionSongId = song.videoId
+        nextResolveJob?.cancel()
+        nextSong = null
         val currentPlaying = current
         if (currentPlaying == null || paused || !sink.isOpen || !manualCrossfadeEnabled) {
             load(song, playWhenReady)
@@ -269,6 +273,8 @@ class DesktopPlaybackEngine(
         /** Why the first attempt failed, when this call is the retry. */
         priorFailure: Throwable? = null,
     ) {
+        pendingTransitionSongId = song.videoId
+        nextSong = null
         resolveJob?.cancel()
         nextResolveJob?.cancel()
         upgradeJob?.cancel()
@@ -302,6 +308,7 @@ class DesktopPlaybackEngine(
                     )
                 },
                 onFailure = { failure ->
+                    pendingTransitionSongId = null
                     val reported = priorFailure ?: failure
                     _state.value = DesktopPlaybackState(
                         song = song,
@@ -1080,6 +1087,10 @@ class DesktopPlaybackEngine(
         _state.update {
             it.copy(isPlaying = false, positionMs = it.durationMs, positionSampledAtNanos = System.nanoTime())
         }
+        if (pendingTransitionSongId != null) {
+            DesktopTrackLog.log("finishTrack: suppressed onEnded because transition to $pendingTransitionSongId is in flight")
+            return
+        }
         onEnded()
     }
 
@@ -1294,6 +1305,7 @@ class DesktopPlaybackEngine(
     }
 
     private fun startTransitionTo(track: Track, playWhenReady: Boolean, fadeSeconds: Float) {
+        pendingTransitionSongId = null
         val leaving = current
         if (leaving == null || paused || !sink.isOpen) {
             startTrack(track, playWhenReady)
@@ -1328,6 +1340,7 @@ class DesktopPlaybackEngine(
     }
 
     private fun startTrack(track: Track, playWhenReady: Boolean) {
+        pendingTransitionSongId = null
         // Never the one being started: a restart of the current track would otherwise close the
         // decoder it is about to read from.
         if (current !== track) current?.decoder?.close()

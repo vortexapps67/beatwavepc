@@ -667,6 +667,7 @@ fun BeatWaveDesktopApp() {
     var volume by remember { mutableStateOf(persistence.string("volume", "1.0").toFloatOrNull()?.coerceIn(0.0f, 1.0f) ?: 1.0f) }
     var manualCrossfade by remember { mutableStateOf(persistence.boolean("manual_crossfade", true)) }
     var crossfadeSeconds by remember { mutableStateOf(persistence.string("crossfade_seconds", "4.0").toFloatOrNull()?.coerceIn(0f, 12f) ?: 4.0f) }
+    var userRequestedSongId by remember { mutableStateOf<String?>(null) }
     var visualMorphQuality by remember { mutableStateOf(VisualMorphQuality.from(persistence.string("visual_morph_quality", "FLUID"))) }
     var downloadQuality by remember { mutableStateOf(persistence.string("download_quality", "LOSSLESS")) }
     var trayIconEnabled by remember { mutableStateOf(persistence.boolean("tray_icon", true)) }
@@ -840,6 +841,7 @@ fun BeatWaveDesktopApp() {
     /** Opens whatever the queue is currently pointing at. */
     fun playCurrent(startPlaying: Boolean = true, crossfade: Boolean = true) {
         val song = liveQueue.current ?: return
+        userRequestedSongId = song.videoId
         selectedSong = song
         history = (listOf(song) + history.filterNot { it.videoId == song.videoId }).take(50)
         saveQueue()
@@ -1478,6 +1480,11 @@ fun BeatWaveDesktopApp() {
         DesktopPlaybackEngine(
             onEnded = {
                 selectedSong?.let(DesktopScrobbling::onPlaybackEnded)
+                val requested = userRequestedSongId
+                if (requested != null && requested != playbackEngine.state.value.song?.videoId) {
+                    DesktopTrackLog.log("onEnded: ignoring auto-advance because manual playback of $requested is pending")
+                    return@DesktopPlaybackEngine
+                }
                 if (DesktopSleepTimer.afterTrack.value) {
                     DesktopSleepTimer.cancel()
                 } else if (repeatMode == DesktopRepeatMode.ONE) {
@@ -1495,6 +1502,7 @@ fun BeatWaveDesktopApp() {
             },
             onCrossfaded = { song ->
                 scope.launch {
+                    userRequestedSongId = null
                     // The queue moves with the audio. Only the selection used to, which left the
                     // queue on the track that had just finished — so Next "advanced" onto the song
                     // already playing, and every later skip landed one behind.
